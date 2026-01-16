@@ -17,7 +17,9 @@ interface RestockAlertsProps {
 }
 
 export function RestockAlerts({ items }: RestockAlertsProps) {
-  const urgentItems = items.filter((item) => item.needsRestock).slice(0, 10)
+  const urgentItems = items
+    .filter((item) => item.needsRestock && item.daysUntilStockout > 0)
+    .slice(0, 10)
 
   const getUrgencyColor = (days: number) => {
     if (days < 7) return "bg-red-100 text-red-800 border-red-200"

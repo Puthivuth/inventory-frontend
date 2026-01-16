@@ -23,6 +23,7 @@ interface ProfitAnalytics {
 }
 
 interface DebugData {
+  invoiceNumber: string;
   name: string
   qty: number
   revenue: number
@@ -50,7 +51,11 @@ export function ProfitSummary() {
         // Debugging logic to provide a breakdown
         const invoices = await getInvoices()
         const items = await getInventoryItems()
-        const paidInvoices = invoices.filter(inv => inv.status === 'paid')
+        const paidInvoices = invoices
+          .filter(inv => inv.status === 'paid')
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          .slice(0, 5);
+          
         const details: DebugData[] = []
         
         paidInvoices.forEach(invoice => {
@@ -63,6 +68,7 @@ export function ProfitSummary() {
             const profit = revenue - costTotal
             
             details.push({
+              invoiceNumber: invoice.invoiceNumber,
               name: invoiceItem.name,
               qty: quantity,
               revenue: revenue,
@@ -150,34 +156,7 @@ export function ProfitSummary() {
         </CardContent>
       </Card>
 
-      <Card className="col-span-full">
-        <CardHeader>
-          <CardTitle>Top Profitable Products</CardTitle>
-          <CardDescription>Products generating the most profit</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {analytics.topProfitableProducts.slice(0, 5).map((product, index) => (
-              <div key={index} className="flex items-center justify-between">
-                <div className="flex-1">
-                  <p className="text-sm font-medium">{product.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {product.units} units sold
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-green-600">
-                    ${product.profit.toFixed(2)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {((product.profit / product.revenue) * 100).toFixed(1)}% margin
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+
 
       <Card className="col-span-full">
         <CardHeader>
@@ -192,6 +171,7 @@ export function ProfitSummary() {
             <table className="w-full text-sm text-left">
               <thead className="text-xs text-muted-foreground uppercase bg-muted/50">
                 <tr>
+                  <th className="px-4 py-3">Invoice ID</th>
                   <th className="px-4 py-3">Product</th>
                   <th className="px-4 py-3 text-right">Qty</th>
                   <th className="px-4 py-3 text-right">Revenue</th>
@@ -204,6 +184,7 @@ export function ProfitSummary() {
                 {debugData.length > 0 ? (
                   debugData.map((d, i) => (
                     <tr key={i} className="border-b">
+                      <td className="px-4 py-3 font-medium">{d.invoiceNumber}</td>
                       <td className="px-4 py-3 font-medium">{d.name}</td>
                       <td className="px-4 py-3 text-right">{d.qty}</td>
                       <td className="px-4 py-3 text-right">${d.revenue.toFixed(2)}</td>
@@ -216,7 +197,7 @@ export function ProfitSummary() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <td colSpan={7} className="text-center py-8 text-muted-foreground">
                       No items found in "paid" invoices.
                     </td>
                   </tr>

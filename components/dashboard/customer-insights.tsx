@@ -146,7 +146,7 @@ export function CustomerInsights() {
           </div>
           <div className="space-y-3">
             {insights.topCustomers.map((customer, idx) => (
-              <div key={customer.email} className="flex items-center justify-between">
+              <div key={`${customer.email}-${customer.name}-${idx}`} className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-white flex items-center justify-center text-xs font-bold">
                     {idx + 1}

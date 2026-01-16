@@ -58,13 +58,7 @@ export function SupplierAnalytics({ suppliers }: SupplierAnalyticsProps) {
                 <div className="flex-1 min-w-0 space-y-1 w-full">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <h4 className="font-semibold text-base sm:text-lg break-words">{supplier.name}</h4>
-                    <Badge
-                      variant="outline"
-                      className={`${getReliabilityColor(supplier.reliability)} text-xs sm:text-sm whitespace-nowrap flex-shrink-0`}
-                    >
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      {supplier.reliability}% Reliable
-                    </Badge>
+
                   </div>
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground overflow-hidden">
                     <span className="flex items-center gap-1 flex-shrink-0">

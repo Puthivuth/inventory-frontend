@@ -12,8 +12,9 @@ import {
   calculateRestockPredictions,
 } from "@/lib/analytics"
 import { StatsCards } from "@/components/dashboard/stats-cards"
-import { TopProducts } from "@/components/dashboard/top-products"
+
 import { RevenueChart } from "@/components/dashboard/revenue-chart"
+import { TopProducts } from "@/components/dashboard/top-products"
 import { LowStockAlert } from "@/components/dashboard/low-stock-alert"
 import { BarChart3, Menu } from "lucide-react"
 import { Sidebar } from "@/components/navigation/sidebar"

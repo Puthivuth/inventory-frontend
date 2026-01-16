@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS public.invoices (
   total NUMERIC(10, 2) NOT NULL DEFAULT 0,
   notes TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  paid_at TIMESTAMP WITH TIME ZONE
 );
 
 -- Create invoice_items table (for line items in each invoice)

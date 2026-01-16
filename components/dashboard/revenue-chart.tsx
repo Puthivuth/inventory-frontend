@@ -26,7 +26,7 @@ export function RevenueChart({ data }: RevenueChartProps) {
                 color: "hsl(217, 91%, 60%)",
               },
             }}
-            className="h-[300px]"
+            className="h-[500px]"
           >
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data}>

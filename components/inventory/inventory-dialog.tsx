@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button"
 import { Plus, ArrowLeft } from 'lucide-react'
 import { InventoryForm } from "./inventory-form"
 import { addInventoryItem, updateInventoryItem, deleteInventoryItem } from "@/lib/api"
-import { AssociatedProducts } from "./associated-products"
 
 interface InventoryDialogProps {
   item?: InventoryItem | null
@@ -103,11 +102,6 @@ export function InventoryDialog({ item, open, onOpenChange, onSuccess }: Invento
             onCancel={handleCancel}
             onDelete={item ? handleDelete : undefined}
           />
-          {item && (
-            <div className="mt-6">
-              <AssociatedProducts productId={item.productId} />
-            </div>
-          )}
         </DialogContent>
       </Dialog>
     </>

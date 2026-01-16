@@ -45,7 +45,7 @@ export function CustomersTable() {
       if (response.ok) {
         const data = await response.json()
         // Sort by createdAt descending (newest first)
-        const sortedData = data.sort((a: any, b: any) => 
+        const sortedData = data.sort((a: any, b: any) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         )
         setCustomers(sortedData)

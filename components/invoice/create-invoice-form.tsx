@@ -87,6 +87,16 @@ export function CreateInvoiceForm({ onSubmit }: CreateInvoiceFormProps) {
             }
           }
 
+          if (field === "quantity") {
+            const inventoryItem = inventoryItems.find((inv) => inv.id === item.inventoryItemId);
+            if (inventoryItem && Number(value) > inventoryItem.stock) {
+              alert(
+                `Insufficient stock for ${inventoryItem.name}. Only ${inventoryItem.stock} units available.`
+              );
+              updated.quantity = inventoryItem.stock;
+            }
+          }
+
           // Calculate total for this item
           const itemPrice = updated.price
           const itemDiscount = (itemPrice * updated.discount) / 100

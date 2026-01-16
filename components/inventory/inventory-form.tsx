@@ -187,16 +187,16 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
 
   // Effect to sync status and discount
   useEffect(() => {
-    // If status is changed to something other than Discontinued, reset discount
-    if (formData.status !== 'Discontinued') {
+    // If status is changed to something other than Discount, reset discount
+    if (formData.status !== 'Discount') {
       setFormData(prev => ({ ...prev, discount: '0' }))
     }
   }, [formData.status])
 
   useEffect(() => {
-    // If discount is added and status is not already Discontinued, set it
-    if (parseFloat(formData.discount) > 0 && formData.status !== 'Discontinued') {
-      setFormData(prev => ({ ...prev, status: 'Discontinued' }))
+    // If discount is added and status is not already Discount, set it
+    if (parseFloat(formData.discount) > 0 && formData.status !== 'Discount') {
+      setFormData(prev => ({ ...prev, status: 'Discount' }))
     }
   }, [formData.discount])
 
@@ -323,8 +323,8 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (formData.status === 'Discontinued' && parseFloat(formData.discount) <= 0) {
-      alert('A discount greater than 0 is required for discontinued items.')
+    if (formData.status === 'Discount' && parseFloat(formData.discount) <= 0) {
+      alert('A discount greater than 0 is required for discount items.')
       return
     }
 
@@ -544,7 +544,7 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
           >
             <option value="Active">Active</option>
             <option value="Inactive">Inactive</option>
-            <option value="Discontinued">Discontinued</option>
+            <option value="Discount">Discount</option>
           </select>
         </div>
       </div>

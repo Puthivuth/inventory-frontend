@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import type { Supplier } from "@/types"
+import type { Supplier, InventoryItem } from "@/types"
+import { getInventoryItems } from "@/lib/api"
 import {
   Dialog,
   DialogContent,
@@ -21,8 +22,8 @@ interface Product {
   image: string | null
   skuCode: string
   unit: string
-  costPrice: string
-  discount: string
+  costPrice: number
+  discount: number
   status: string
 }
 
@@ -34,13 +35,28 @@ interface SupplierDetailDialogProps {
 
 export function SupplierDetailDialog({ supplier, open, onOpenChange }: SupplierDetailDialogProps) {
   const [products, setProducts] = useState<Product[]>([])
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([])
   const [loading, setLoading] = useState(false)
+  const [inventoryLoading, setInventoryLoading] = useState(false)
 
   useEffect(() => {
     if (supplier && open) {
       fetchSupplierProducts()
+      fetchInventoryItems()
     }
   }, [supplier, open])
+
+  const fetchInventoryItems = async () => {
+    setInventoryLoading(true)
+    try {
+      const items = await getInventoryItems()
+      setInventoryItems(items)
+    } catch (error) {
+      console.error("Error fetching inventory items:", error)
+    } finally {
+      setInventoryLoading(false)
+    }
+  }
 
   const fetchSupplierProducts = async () => {
     if (!supplier) return
@@ -57,10 +73,34 @@ export function SupplierDetailDialog({ supplier, open, onOpenChange }: SupplierD
 
       if (response.ok) {
         const allProducts = await response.json()
-        // Filter products by supplier source ID
-        const supplierProducts = allProducts.filter(
-          (product: Product & { source: number | null }) => product.source?.toString() === supplier.id
-        )
+        
+        // Create a map for inventory items for quick lookup by product name
+        const inventoryMap = new Map<string, InventoryItem>();
+        inventoryItems.forEach(item => {
+          inventoryMap.set(item.name.toLowerCase(), item);
+        });
+
+        const supplierProducts = allProducts
+          .filter((product: any) => product.source?.toString() === supplier.id)
+          .map((product: any) => {
+            let costPrice = parseFloat(product.costPrice);
+            let discount = parseFloat(product.discount);
+
+            // Fallback to inventory costPrice if supplier product costPrice is invalid
+            if (isNaN(costPrice) || costPrice === 0) { // Check for NaN or 0
+              const matchingInventoryItem = inventoryMap.get(product.productName.toLowerCase());
+              if (matchingInventoryItem && matchingInventoryItem.costPrice !== undefined) {
+                costPrice = matchingInventoryItem.costPrice;
+              }
+            }
+
+            return {
+              ...product,
+              costPrice: costPrice,
+              discount: discount,
+              status: product.status,
+            };
+          });
         setProducts(supplierProducts)
       }
     } catch (error) {
@@ -74,7 +114,7 @@ export function SupplierDetailDialog({ supplier, open, onOpenChange }: SupplierD
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[95vw] sm:max-w-5xl max-h-[95vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl sm:text-2xl flex items-center gap-2">
             <Building className="h-5 w-5" />
@@ -189,11 +229,11 @@ export function SupplierDetailDialog({ supplier, open, onOpenChange }: SupplierD
                       </TableCell>
                       <TableCell>{product.unit}</TableCell>
                       <TableCell className="text-right">
-                        ${parseFloat(product.costPrice).toFixed(2)}
+                        {isNaN(product.costPrice) ? "N/A" : `$${product.costPrice.toFixed(2)}`}
                       </TableCell>
                       <TableCell className="text-right">
-                        {parseFloat(product.discount) > 0 ? (
-                          <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                        {product.discount > 0 ? (
+                          <Badge variant="outline" className="bg-red-100 text-red-700">
                             {product.discount}%
                           </Badge>
                         ) : (
@@ -202,10 +242,26 @@ export function SupplierDetailDialog({ supplier, open, onOpenChange }: SupplierD
                       </TableCell>
                       <TableCell>
                         <Badge
-                          variant={product.status === "Active" ? "default" : "secondary"}
-                          className={product.status === "Active" ? "bg-green-600" : ""}
+                          variant={
+                            product.status === "Active"
+                              ? "default"
+                              : product.status === "Inactive"
+                              ? "outline"
+                              : (product.status === "Discount" || product.status === "Discontinued")
+                              ? "secondary"
+                              : "destructive"
+                          }
+                          className={`${
+                            product.status === "Active"
+                              ? "bg-green-600"
+                              : product.status === "Inactive"
+                              ? "bg-yellow-500"
+                              : (product.status === "Discount" || product.status === "Discontinued")
+                              ? "bg-red-600 text-white"
+                              : "bg-red-600"
+                          }`}
                         >
-                          {product.status}
+                          {(product.status === "Discontinued") ? "Discount" : product.status}
                         </Badge>
                       </TableCell>
                     </TableRow>

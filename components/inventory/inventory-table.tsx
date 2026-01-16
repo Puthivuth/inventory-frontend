@@ -44,7 +44,14 @@ export function InventoryTable({ items, onUpdate }: InventoryTableProps) {
       const matchesCategory = selectedCategory === "all" || item.category === selectedCategory
       
       // Status filter
-      const matchesStatus = selectedStatus === "all" || item.status === selectedStatus
+      let matchesStatus = true;
+      if (selectedStatus !== "all") {
+        if (selectedStatus === "Discount") {
+          matchesStatus = item.status === "Discount" || item.status === "Discontinued";
+        } else {
+          matchesStatus = item.status === selectedStatus;
+        }
+      }
       
       // Stock filter
       let matchesStock = true
@@ -142,7 +149,7 @@ export function InventoryTable({ items, onUpdate }: InventoryTableProps) {
             <option value="all">All Status</option>
             <option value="Active">Active</option>
             <option value="Inactive">Inactive</option>
-            <option value="Discontinued">Discontinued</option>
+            <option value="Discount">Discount</option>
           </select>
 
           {/* Stock Level Filter */}
@@ -244,6 +251,8 @@ export function InventoryTable({ items, onUpdate }: InventoryTableProps) {
                           ? "default"
                           : item.status === "Inactive"
                           ? "outline"
+                          : (item.status === "Discount" || item.status === "Discontinued")
+                          ? "secondary"
                           : "destructive"
                       }
                       className={`text-sm px-3 py-1 ${
@@ -251,10 +260,12 @@ export function InventoryTable({ items, onUpdate }: InventoryTableProps) {
                           ? "bg-green-600"
                           : item.status === "Inactive"
                           ? "bg-yellow-500"
+                          : (item.status === "Discount" || item.status === "Discontinued")
+                          ? "bg-red-600 text-white"
                           : "bg-red-600"
                       }`}
                     >
-                      {item.status}
+                      {(item.status === "Discontinued") ? "Discount" : item.status}
                     </Badge>
                   </TableCell>
                   {isManagerOrAdmin() && (

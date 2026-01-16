@@ -10,7 +10,7 @@ import { Eye, Trash2, Search, QrCode } from "lucide-react"
 import { deleteInvoice } from "@/lib/api"
 import { InvoicePreview } from "./invoice-preview"
 import { KHQRPaymentDialog } from "./khqr-payment-dialog"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { canWrite } from "@/lib/permissions"
 
 interface InvoiceListProps {
@@ -162,6 +162,9 @@ export function InvoiceList({ invoices, onUpdate }: InvoiceListProps) {
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Invoice Preview</DialogTitle>
+            <DialogDescription>
+              View a detailed preview of the selected invoice.
+            </DialogDescription>
           </DialogHeader>
           {selectedInvoice && <InvoicePreview invoice={selectedInvoice} />}
         </DialogContent>

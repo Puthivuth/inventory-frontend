@@ -59,7 +59,7 @@ export function RecentActivityFeed() {
         // Sort by time
         recentActivities.sort((a, b) => b.time.getTime() - a.time.getTime())
 
-        setActivities(recentActivities.slice(0, 10))
+        setActivities(recentActivities.slice(0, 5))
       } catch (error) {
         console.error("Error loading activities:", error)
       } finally {

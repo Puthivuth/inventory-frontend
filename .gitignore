@@ -41,3 +41,5 @@ next-env.d.ts
 FRONTEND_STRUCTURE.md
 
 *.log
+.next
+.env

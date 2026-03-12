@@ -39,3 +39,5 @@ next-env.d.ts
 
 # Documentation (local only)
 FRONTEND_STRUCTURE.md
+
+*.log

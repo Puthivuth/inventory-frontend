@@ -117,7 +117,7 @@ export function PurchaseOrderTable() {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
-        `https://vuthserver.tailf87741.ts.net/api/invoices/${invoiceId}/check_payment/`,
+        `http://localhost:8000/api/invoices/${invoiceId}/check_payment/`,
         {
           method: "POST",
           headers: {
@@ -161,7 +161,7 @@ export function PurchaseOrderTable() {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
-        `https://vuthserver.tailf87741.ts.net/api/invoices/${invoice.invoiceId}/`,
+        `http://localhost:8000/api/invoices/${invoice.invoiceId}/`,
         {
           method: "PATCH",
           headers: {
@@ -191,7 +191,7 @@ export function PurchaseOrderTable() {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
-        `https://vuthserver.tailf87741.ts.net/api/invoices/${invoice.invoiceId}/`,
+        `http://localhost:8000/api/invoices/${invoice.invoiceId}/`,
         {
           method: "PATCH",
           headers: {
@@ -221,7 +221,7 @@ export function PurchaseOrderTable() {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
-        `https://vuthserver.tailf87741.ts.net/api/invoices/${invoiceId}/`,
+        `http://localhost:8000/api/invoices/${invoiceId}/`,
         {
           method: "DELETE",
           headers: {
@@ -247,7 +247,7 @@ export function PurchaseOrderTable() {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
-        `https://vuthserver.tailf87741.ts.net/api/invoices/${invoiceId}/`,
+        `http://localhost:8000/api/invoices/${invoiceId}/`,
         {
           headers: {
             Authorization: `Token ${token}`,

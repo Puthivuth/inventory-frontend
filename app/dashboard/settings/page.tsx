@@ -37,7 +37,7 @@ export default function SettingsPage() {
         setUserId(user.id)
         
         // Fetch user profile
-        const response = await fetch("https://vuthserver.tailf87741.ts.net/api/user-profiles/", {
+        const response = await fetch("http://localhost:8000/api/user-profiles/", {
           headers: { Authorization: `Token ${token}` },
         })
         
@@ -83,12 +83,12 @@ export default function SettingsPage() {
       formData.append("taxId", profileData.taxId)
 
       // Check if profile exists
-      const checkResponse = await fetch("https://vuthserver.tailf87741.ts.net/api/user-profiles/", {
+      const checkResponse = await fetch("http://localhost:8000/api/user-profiles/", {
         headers: { Authorization: `Token ${token}` },
       })
       
       let method = "POST"
-      let url = "https://vuthserver.tailf87741.ts.net/api/user-profiles/"
+      let url = "http://localhost:8000/api/user-profiles/"
       
       if (checkResponse.ok) {
         const profiles = await checkResponse.json()
@@ -96,7 +96,7 @@ export default function SettingsPage() {
         
         if (existingProfile && profileId) {
           method = "PUT"
-          url = `https://vuthserver.tailf87741.ts.net/api/user-profiles/${profileId}/`
+          url = `http://localhost:8000/api/user-profiles/${profileId}/`
         }
       }
 

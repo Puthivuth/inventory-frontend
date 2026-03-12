@@ -108,7 +108,7 @@ export function InvoiceGenerator({ invoice, onClose }: InvoiceGeneratorProps) {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
-        `https://vuthserver.tailf87741.ts.net/api/invoices/${invoice.invoiceId}/generate_khqr/`,
+        `http://localhost:8000/api/invoices/${invoice.invoiceId}/generate_khqr/`,
         {
           method: "POST",
           headers: {
@@ -139,7 +139,7 @@ export function InvoiceGenerator({ invoice, onClose }: InvoiceGeneratorProps) {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
-        "https://vuthserver.tailf87741.ts.net/api/user-profiles/",
+        "http://localhost:8000/api/user-profiles/",
         {
           headers: { Authorization: `Token ${token}` },
         }

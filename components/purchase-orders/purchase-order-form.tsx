@@ -141,7 +141,7 @@ export function PurchaseOrderForm({
       try {
         // Fetch customers
         const customersRes = await fetch(
-          "https://vuthserver.tailf87741.ts.net/api/customers/",
+          "http://localhost:8000/api/customers/",
           {
             headers: { Authorization: `Token ${token}` },
             signal: controller.signal,
@@ -153,7 +153,7 @@ export function PurchaseOrderForm({
 
         // Fetch products
         const productsRes = await fetch(
-          "https://vuthserver.tailf87741.ts.net/api/products/",
+          "http://localhost:8000/api/products/",
           {
             headers: { Authorization: `Token ${token}` },
             signal: controller.signal,
@@ -265,7 +265,7 @@ export function PurchaseOrderForm({
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
       const response = await fetch(
-        "https://vuthserver.tailf87741.ts.net/api/customers/",
+        "http://localhost:8000/api/customers/",
         {
           method: "POST",
           headers: {
@@ -364,7 +364,7 @@ export function PurchaseOrderForm({
       if (invoice) {
         // Update existing invoice
         response = await fetch(
-          `https://vuthserver.tailf87741.ts.net/api/invoices/${invoice.invoiceId}/`,
+          `http://localhost:8000/api/invoices/${invoice.invoiceId}/`,
           {
             method: "PUT",
             headers: {
@@ -378,7 +378,7 @@ export function PurchaseOrderForm({
       } else {
         // Create new invoice
         response = await fetch(
-          "https://vuthserver.tailf87741.ts.net/api/invoices/",
+          "http://localhost:8000/api/invoices/",
           {
             method: "POST",
             headers: {

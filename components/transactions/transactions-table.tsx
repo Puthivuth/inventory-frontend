@@ -35,7 +35,7 @@ export function TransactionsTable() {
   const fetchTransactions = async () => {
     try {
       const token = localStorage.getItem("token")
-      const response = await fetch("https://vuthserver.tailf87741.ts.net/api/transactions/", {
+      const response = await fetch("http://localhost:8000/api/transactions/", {
         headers: {
           Authorization: `Token ${token}`,
           "Content-Type": "application/json",

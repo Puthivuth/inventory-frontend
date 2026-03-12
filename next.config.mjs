@@ -15,8 +15,9 @@ const nextConfig = {
       },
       // Add production domain when deployed
       {
-        protocol: 'https',
-        hostname: process.env.NEXT_PUBLIC_BACKEND_DOMAIN || 'vuthserver.tailf87741.ts.net',
+        protocol: 'http',
+        hostname: process.env.NEXT_PUBLIC_BACKEND_DOMAIN || 'localhost',
+        port: '8000',
         pathname: '/media/**',
       },
       // {

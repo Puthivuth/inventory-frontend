@@ -63,8 +63,8 @@ export function CustomerDialog({ customer, open, onOpenChange, onSuccess }: Cust
     try {
       const token = localStorage.getItem("token")
       const url = customer
-        ? `https://vuthserver.tailf87741.ts.net/api/customers/${customer.customerId}/`
-        : "https://vuthserver.tailf87741.ts.net/api/customers/"
+        ? `http://localhost:8000/api/customers/${customer.customerId}/`
+        : "http://localhost:8000/api/customers/"
 
       const method = customer ? "PUT" : "POST"
 

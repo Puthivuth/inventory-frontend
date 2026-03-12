@@ -64,7 +64,7 @@ export function SupplierDetailDialog({ supplier, open, onOpenChange }: SupplierD
     setLoading(true)
     try {
       const token = localStorage.getItem("token")
-      const response = await fetch("https://vuthserver.tailf87741.ts.net/api/products/", {
+      const response = await fetch("http://localhost:8000/api/products/", {
         headers: {
           Authorization: `Token ${token}`,
           "Content-Type": "application/json",

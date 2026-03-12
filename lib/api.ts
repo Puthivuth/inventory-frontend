@@ -51,7 +51,7 @@ interface ApiSource {
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_DJANGO_API_URL ||
   process.env.NEXT_PUBLIC_API_URL ||
-  "https://vuthserver.tailf87741.ts.net";
+  "http://localhost:8000";
 
 // Helper to build correct API URLs
 function buildApiUrl(endpoint: string): string {

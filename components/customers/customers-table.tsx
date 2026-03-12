@@ -35,7 +35,7 @@ export function CustomersTable() {
   const fetchCustomers = async () => {
     try {
       const token = localStorage.getItem("token")
-      const response = await fetch("https://vuthserver.tailf87741.ts.net/api/customers/", {
+      const response = await fetch("http://localhost:8000/api/customers/", {
         headers: {
           Authorization: `Token ${token}`,
           "Content-Type": "application/json",
@@ -64,7 +64,7 @@ export function CustomersTable() {
 
     try {
       const token = localStorage.getItem("token")
-      const response = await fetch(`https://vuthserver.tailf87741.ts.net/api/customers/${customerId}/`, {
+      const response = await fetch(`http://localhost:8000/api/customers/${customerId}/`, {
         method: "DELETE",
         headers: {
           Authorization: `Token ${token}`,

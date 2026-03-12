@@ -97,7 +97,7 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
         const token = localStorage.getItem("token")
         
         // Fetch sources
-        const sourcesResponse = await fetch("https://vuthserver.tailf87741.ts.net/api/sources/", {
+        const sourcesResponse = await fetch("http://localhost:8000/api/sources/", {
           headers: {
             "Authorization": `Token ${token}`,
             "Content-Type": "application/json",
@@ -109,7 +109,7 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
         }
 
         // Fetch categories
-        const categoriesResponse = await fetch("https://vuthserver.tailf87741.ts.net/api/categories/", {
+        const categoriesResponse = await fetch("http://localhost:8000/api/categories/", {
           headers: {
             "Authorization": `Token ${token}`,
             "Content-Type": "application/json",
@@ -121,7 +121,7 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
         }
 
         // Fetch subcategories
-        const subcategoriesResponse = await fetch("https://vuthserver.tailf87741.ts.net/api/subcategories/", {
+        const subcategoriesResponse = await fetch("http://localhost:8000/api/subcategories/", {
           headers: {
             "Authorization": `Token ${token}`,
             "Content-Type": "application/json",
@@ -225,7 +225,7 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
   const handleCreateSupplier = async () => {
     try {
       const token = localStorage.getItem("token")
-      const response = await fetch("https://vuthserver.tailf87741.ts.net/api/sources/", {
+      const response = await fetch("http://localhost:8000/api/sources/", {
         method: "POST",
         headers: {
           "Authorization": `Token ${token}`,
@@ -259,7 +259,7 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
   const handleCreateCategory = async () => {
     try {
       const token = localStorage.getItem("token")
-      const response = await fetch("https://vuthserver.tailf87741.ts.net/api/categories/", {
+      const response = await fetch("http://localhost:8000/api/categories/", {
         method: "POST",
         headers: {
           "Authorization": `Token ${token}`,
@@ -292,7 +292,7 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
     
     try {
       const token = localStorage.getItem("token")
-      const response = await fetch("https://vuthserver.tailf87741.ts.net/api/subcategories/", {
+      const response = await fetch("http://localhost:8000/api/subcategories/", {
         method: "POST",
         headers: {
           "Authorization": `Token ${token}`,

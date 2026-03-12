@@ -5,6 +5,7 @@ COPY package*.json ./
 RUN npm install
 COPY . .
 RUN npm run build
+RUN npm run export   # <-- generate static files in out/
 
 # Stage 2: Run
 FROM node:20-alpine

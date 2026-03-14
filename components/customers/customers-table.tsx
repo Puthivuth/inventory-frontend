@@ -1,86 +1,107 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useMemo } from "react"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Search, Filter, X, Plus, Trash2, Phone, Mail, MapPin } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { CustomerDialog } from "./customer-dialog"
-import { canWrite } from "@/lib/permissions"
+import { useState, useEffect, useMemo } from "react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Search,
+  Filter,
+  X,
+  Plus,
+  Trash2,
+  Phone,
+  Mail,
+  MapPin,
+  Edit2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { CustomerDialog } from "./customer-dialog";
+import { canWrite } from "@/lib/permissions";
 
 interface Customer {
-  customerId: number
-  name: string
-  businessAddress: string
-  phone: string
-  email: string | null
-  customerType: string
-  firstPurchaseDate: string | null
-  createdAt: string
+  customerId: number;
+  name: string;
+  businessAddress: string;
+  phone: string;
+  email: string | null;
+  customerType: string;
+  firstPurchaseDate: string | null;
+  createdAt: string;
 }
 
 export function CustomersTable() {
-  const [customers, setCustomers] = useState<Customer[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [typeFilter, setTypeFilter] = useState<string>("all")
-  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   useEffect(() => {
-    fetchCustomers()
-  }, [])
+    fetchCustomers();
+  }, []);
 
   const fetchCustomers = async () => {
     try {
-      const token = localStorage.getItem("token")
+      const token = localStorage.getItem("token");
       const response = await fetch("http://localhost:8000/api/customers/", {
         headers: {
           Authorization: `Token ${token}`,
           "Content-Type": "application/json",
         },
-      })
+      });
 
       if (response.ok) {
-        const data = await response.json()
+        const data = await response.json();
         // Sort by createdAt descending (newest first)
-        const sortedData = data.sort((a: any, b: any) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        )
-        setCustomers(sortedData)
+        const sortedData = data.sort(
+          (a: any, b: any) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        );
+        setCustomers(sortedData);
       } else {
-        console.error("Failed to fetch customers")
+        console.error("Failed to fetch customers");
       }
     } catch (error) {
-      console.error("Error fetching customers:", error)
+      console.error("Error fetching customers:", error);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleDelete = async (customerId: number) => {
-    if (!confirm("Are you sure you want to delete this customer?")) return
+    if (!confirm("Are you sure you want to delete this customer?")) return;
 
     try {
-      const token = localStorage.getItem("token")
-      const response = await fetch(`http://localhost:8000/api/customers/${customerId}/`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Token ${token}`,
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `http://localhost:8000/api/customers/${customerId}/`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Token ${token}`,
+          },
         },
-      })
+      );
 
       if (response.ok) {
-        fetchCustomers()
+        fetchCustomers();
       } else {
-        alert("Failed to delete customer")
+        alert("Failed to delete customer");
       }
     } catch (error) {
-      console.error("Error deleting customer:", error)
-      alert("Error deleting customer")
+      console.error("Error deleting customer:", error);
+      alert("Error deleting customer");
     }
-  }
+  };
 
   const filteredCustomers = useMemo(() => {
     return customers.filter((customer) => {
@@ -88,32 +109,35 @@ export function CustomersTable() {
         customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         customer.phone.toLowerCase().includes(searchTerm.toLowerCase()) ||
         customer.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        customer.businessAddress.toLowerCase().includes(searchTerm.toLowerCase())
+        customer.businessAddress
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase());
 
-      const matchesType = typeFilter === "all" || customer.customerType === typeFilter
+      const matchesType =
+        typeFilter === "all" || customer.customerType === typeFilter;
 
-      return matchesSearch && matchesType
-    })
-  }, [customers, searchTerm, typeFilter])
+      return matchesSearch && matchesType;
+    });
+  }, [customers, searchTerm, typeFilter]);
 
-  const hasActiveFilters = typeFilter !== "all"
+  const hasActiveFilters = typeFilter !== "all";
 
   const clearFilters = () => {
-    setTypeFilter("all")
-  }
+    setTypeFilter("all");
+  };
 
   const getCustomerTypeColor = (type: string) => {
-    return type === "Business" 
-      ? "bg-blue-100 text-blue-800" 
-      : "bg-green-100 text-green-800"
-  }
+    return type === "Business"
+      ? "bg-blue-100 text-blue-800"
+      : "bg-green-100 text-green-800";
+  };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <p className="text-muted-foreground">Loading customers...</p>
       </div>
-    )
+    );
   }
 
   return (
@@ -133,11 +157,10 @@ export function CustomersTable() {
           {canWrite() && (
             <Button
               onClick={() => {
-                setEditingCustomer(null)
-                setIsDialogOpen(true)
+                setEditingCustomer(null);
+                setIsDialogOpen(true);
               }}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
+              className="bg-blue-600 hover:bg-blue-700">
               <Plus className="h-4 w-4 mr-2" />
               Add Customer
             </Button>
@@ -155,8 +178,7 @@ export function CustomersTable() {
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          >
+            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
             <option value="all">All Types</option>
             <option value="Individual">Individual</option>
             <option value="Business">Business</option>
@@ -164,7 +186,11 @@ export function CustomersTable() {
 
           {/* Clear Filters Button */}
           {hasActiveFilters && (
-            <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 px-3 text-sm">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearFilters}
+              className="h-9 px-3 text-sm">
               <X className="h-4 w-4 mr-1" />
               Clear Filters
             </Button>
@@ -182,35 +208,51 @@ export function CustomersTable() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="text-xs sm:text-sm min-w-[150px]">Customer Name</TableHead>
-              <TableHead className="text-xs sm:text-sm min-w-[100px]">Type</TableHead>
-              <TableHead className="text-xs sm:text-sm min-w-[180px]">Contact</TableHead>
-              <TableHead className="text-xs sm:text-sm min-w-[200px]">Address</TableHead>
-              <TableHead className="text-xs sm:text-sm min-w-[120px]">First Purchase</TableHead>
-              <TableHead className="text-xs sm:text-sm min-w-[100px]">Added On</TableHead>
-              <TableHead className="text-right text-xs sm:text-sm min-w-[100px]">Actions</TableHead>
+              <TableHead className="text-xs sm:text-sm min-w-[150px]">
+                Customer Name
+              </TableHead>
+              <TableHead className="text-xs sm:text-sm min-w-[100px]">
+                Type
+              </TableHead>
+              <TableHead className="text-xs sm:text-sm min-w-[180px]">
+                Contact
+              </TableHead>
+              <TableHead className="text-xs sm:text-sm min-w-[200px]">
+                Address
+              </TableHead>
+              <TableHead className="text-xs sm:text-sm min-w-[120px]">
+                First Purchase
+              </TableHead>
+              <TableHead className="text-xs sm:text-sm min-w-[100px]">
+                Added On
+              </TableHead>
+              <TableHead className="text-right text-xs sm:text-sm min-w-[100px]">
+                Actions
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredCustomers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground">
+                <TableCell
+                  colSpan={7}
+                  className="text-center text-muted-foreground">
                   No customers found
                 </TableCell>
               </TableRow>
             ) : (
               filteredCustomers.map((customer) => (
-                <TableRow 
+                <TableRow
                   key={customer.customerId}
                   className="cursor-pointer hover:bg-muted/50 transition-colors"
                   onClick={() => {
-                    setEditingCustomer(customer)
-                    setIsDialogOpen(true)
-                  }}
-                >
+                    setEditingCustomer(customer);
+                    setIsDialogOpen(true);
+                  }}>
                   <TableCell className="font-medium">{customer.name}</TableCell>
                   <TableCell>
-                    <Badge className={getCustomerTypeColor(customer.customerType)}>
+                    <Badge
+                      className={getCustomerTypeColor(customer.customerType)}>
                       {customer.customerType}
                     </Badge>
                   </TableCell>
@@ -231,24 +273,41 @@ export function CustomersTable() {
                   <TableCell>
                     <div className="flex items-start gap-2 text-sm">
                       <MapPin className="h-3 w-3 text-muted-foreground mt-0.5 flex-shrink-0" />
-                      <span className="line-clamp-2">{customer.businessAddress}</span>
+                      <span className="line-clamp-2">
+                        {customer.businessAddress}
+                      </span>
                     </div>
                   </TableCell>
                   <TableCell>
-                    {customer.firstPurchaseDate 
-                      ? new Date(customer.firstPurchaseDate).toLocaleDateString()
-                      : <span className="text-muted-foreground">-</span>
-                    }
+                    {customer.firstPurchaseDate ? (
+                      new Date(customer.firstPurchaseDate).toLocaleDateString()
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
                   </TableCell>
-                  <TableCell>{new Date(customer.createdAt).toLocaleDateString()}</TableCell>
+                  <TableCell>
+                    {new Date(customer.createdAt).toLocaleDateString()}
+                  </TableCell>
                   <TableCell>
                     {canWrite() && (
-                      <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                      <div
+                        className="flex justify-end gap-2"
+                        onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setEditingCustomer(customer);
+                            setIsDialogOpen(true);
+                          }}
+                          title="Edit customer">
+                          <Edit2 className="h-4 w-4 text-blue-600" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => handleDelete(customer.customerId)}
-                        >
+                          title="Delete customer">
                           <Trash2 className="h-4 w-4 text-red-600" />
                         </Button>
                       </div>
@@ -266,11 +325,11 @@ export function CustomersTable() {
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
         onSuccess={() => {
-          fetchCustomers()
-          setIsDialogOpen(false)
-          setEditingCustomer(null)
+          fetchCustomers();
+          setIsDialogOpen(false);
+          setEditingCustomer(null);
         }}
       />
     </div>
-  )
+  );
 }

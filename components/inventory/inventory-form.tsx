@@ -1,51 +1,58 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState, useEffect } from "react"
-import type { InventoryItem } from "@/types"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { uploadProductImage, deleteProductImage } from "@/lib/api"
-import { Upload, X, Plus } from "lucide-react"
-import Image from "next/image"
+import type React from "react";
+import { useState, useEffect } from "react";
+import type { InventoryItem } from "@/types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { uploadProductImage, deleteProductImage } from "@/lib/api";
+import { Upload, X, Plus } from "lucide-react";
+import Image from "next/image";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 
 interface Source {
-  sourceId: number
-  name: string
-  contactPerson?: string
-  phone?: string
-  email?: string
-  address?: string
+  sourceId: number;
+  name: string;
+  contactPerson?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
 }
 
 interface Category {
-  categoryId: number
-  name: string
+  categoryId: number;
+  name: string;
 }
 
 interface SubCategory {
-  subcategoryId: number
-  category: number
-  name: string
+  subcategoryId: number;
+  category: number;
+  name: string;
 }
 
 interface InventoryFormProps {
-  item?: InventoryItem | null
-  onSubmit: (data: Omit<InventoryItem, "id" | "createdAt" | "updatedAt" | "userId">) => void
-  onCancel: () => void
-  onDelete?: () => void
+  item?: InventoryItem | null;
+  onSubmit: (
+    data: Omit<InventoryItem, "id" | "createdAt" | "updatedAt" | "userId">,
+  ) => void;
+  onCancel: () => void;
+  onDelete?: () => void;
 }
 
-export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryFormProps) {
+export function InventoryForm({
+  item,
+  onSubmit,
+  onCancel,
+  onDelete,
+}: InventoryFormProps) {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -63,103 +70,121 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
     minStock: "",
     location: "",
     imageUrl: "",
-  })
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState<string>("")
-  const [isUploading, setIsUploading] = useState(false)
-  const [sources, setSources] = useState<Source[]>([])
-  const [isLoadingSources, setIsLoadingSources] = useState(true)
-  const [categories, setCategories] = useState<Category[]>([])
-  const [subcategories, setSubcategories] = useState<SubCategory[]>([])
-  const [filteredSubcategories, setFilteredSubcategories] = useState<SubCategory[]>([])
-  const [isLoadingCategories, setIsLoadingCategories] = useState(true)
-  const [showNewSupplierDialog, setShowNewSupplierDialog] = useState(false)
-  const [showNewCategoryDialog, setShowNewCategoryDialog] = useState(false)
-  const [showNewSubcategoryDialog, setShowNewSubcategoryDialog] = useState(false)
+  });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
+  const [isUploading, setIsUploading] = useState(false);
+  const [sources, setSources] = useState<Source[]>([]);
+  const [isLoadingSources, setIsLoadingSources] = useState(true);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [subcategories, setSubcategories] = useState<SubCategory[]>([]);
+  const [filteredSubcategories, setFilteredSubcategories] = useState<
+    SubCategory[]
+  >([]);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
+  const [showNewSupplierDialog, setShowNewSupplierDialog] = useState(false);
+  const [showNewCategoryDialog, setShowNewCategoryDialog] = useState(false);
+  const [showNewSubcategoryDialog, setShowNewSubcategoryDialog] =
+    useState(false);
   const [newSupplier, setNewSupplier] = useState({
     name: "",
     contactPerson: "",
     phone: "",
     email: "",
     address: "",
-  })
+  });
   const [newCategory, setNewCategory] = useState({
     name: "",
-  })
+  });
   const [newSubcategory, setNewSubcategory] = useState({
     name: "",
-  })
+  });
 
   // Fetch sources, categories, and subcategories on mount
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const token = localStorage.getItem("token")
-        
+        const token = localStorage.getItem("token");
+
         // Fetch sources
-        const sourcesResponse = await fetch("http://localhost:8000/api/sources/", {
-          headers: {
-            "Authorization": `Token ${token}`,
-            "Content-Type": "application/json",
+        const sourcesResponse = await fetch(
+          "http://localhost:8000/api/sources/",
+          {
+            headers: {
+              Authorization: `Token ${token}`,
+              "Content-Type": "application/json",
+            },
           },
-        })
+        );
         if (sourcesResponse.ok) {
-          const sourcesData = await sourcesResponse.json()
-          setSources(sourcesData)
+          const sourcesData = await sourcesResponse.json();
+          setSources(sourcesData);
         }
 
         // Fetch categories
-        const categoriesResponse = await fetch("http://localhost:8000/api/categories/", {
-          headers: {
-            "Authorization": `Token ${token}`,
-            "Content-Type": "application/json",
+        const categoriesResponse = await fetch(
+          "http://localhost:8000/api/categories/",
+          {
+            headers: {
+              Authorization: `Token ${token}`,
+              "Content-Type": "application/json",
+            },
           },
-        })
+        );
         if (categoriesResponse.ok) {
-          const categoriesData = await categoriesResponse.json()
-          setCategories(categoriesData)
+          const categoriesData = await categoriesResponse.json();
+          setCategories(categoriesData);
         }
 
         // Fetch subcategories
-        const subcategoriesResponse = await fetch("http://localhost:8000/api/subcategories/", {
-          headers: {
-            "Authorization": `Token ${token}`,
-            "Content-Type": "application/json",
+        const subcategoriesResponse = await fetch(
+          "http://localhost:8000/api/subcategories/",
+          {
+            headers: {
+              Authorization: `Token ${token}`,
+              "Content-Type": "application/json",
+            },
           },
-        })
+        );
         if (subcategoriesResponse.ok) {
-          const subcategoriesData = await subcategoriesResponse.json()
-          setSubcategories(subcategoriesData)
+          const subcategoriesData = await subcategoriesResponse.json();
+          setSubcategories(subcategoriesData);
         }
       } catch (error) {
-        console.error("Error fetching data:", error)
+        console.error("Error fetching data:", error);
       } finally {
-        setIsLoadingSources(false)
-        setIsLoadingCategories(false)
+        setIsLoadingSources(false);
+        setIsLoadingCategories(false);
       }
-    }
-    fetchData()
-  }, [])
+    };
+    fetchData();
+  }, []);
 
   // Filter subcategories when category changes
   useEffect(() => {
     if (formData.category) {
       const filtered = subcategories.filter(
-        (sub) => sub.category.toString() === formData.category
-      )
-      setFilteredSubcategories(filtered)
-      
+        (sub) => sub.category.toString() === formData.category,
+      );
+      setFilteredSubcategories(filtered);
+
       // Only reset subcategory if it's not in the filtered list AND we're not loading an item
-      if (formData.subcategory && !filtered.some(sub => sub.subcategoryId.toString() === formData.subcategory) && !item) {
-        setFormData(prev => ({ ...prev, subcategory: "" }))
+      if (
+        formData.subcategory &&
+        !filtered.some(
+          (sub) => sub.subcategoryId.toString() === formData.subcategory,
+        ) &&
+        !item
+      ) {
+        setFormData((prev) => ({ ...prev, subcategory: "" }));
       }
     } else {
-      setFilteredSubcategories([])
+      setFilteredSubcategories([]);
       if (!item) {
-        setFormData(prev => ({ ...prev, subcategory: "" }))
+        setFormData((prev) => ({ ...prev, subcategory: "" }));
       }
     }
-  }, [formData.category, subcategories, item])
+  }, [formData.category, subcategories, item]);
 
   useEffect(() => {
     if (item) {
@@ -180,177 +205,174 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
         minStock: item.minStock.toString(),
         location: item.location || "",
         imageUrl: item.imageUrl || "",
-      })
-      setImagePreview(item.imageUrl || "")
+      });
+      setImagePreview(item.imageUrl || "");
     }
-  }, [item])
-
-  // Effect to sync status and discount
-  useEffect(() => {
-    // If status is changed to something other than Discount, reset discount
-    if (formData.status !== 'Discount') {
-      setFormData(prev => ({ ...prev, discount: '0' }))
-    }
-  }, [formData.status])
-
-  useEffect(() => {
-    // If discount is added and status is not already Discount, set it
-    if (parseFloat(formData.discount) > 0 && formData.status !== 'Discount') {
-      setFormData(prev => ({ ...prev, status: 'Discount' }))
-    }
-  }, [formData.discount])
+  }, [item]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+    const file = e.target.files?.[0];
     if (file) {
-      setImageFile(file)
-      const reader = new FileReader()
+      setImageFile(file);
+      const reader = new FileReader();
       reader.onloadend = () => {
-        setImagePreview(reader.result as string)
-      }
-      reader.readAsDataURL(file)
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
-  }
+  };
 
   const handleRemoveImage = async () => {
     if (formData.imageUrl && !imageFile) {
       // Delete from storage if it's an existing image
-      await deleteProductImage(formData.imageUrl)
+      await deleteProductImage(formData.imageUrl);
     }
-    setImageFile(null)
-    setImagePreview("")
-    setFormData({ ...formData, imageUrl: "" })
-  }
+    setImageFile(null);
+    setImagePreview("");
+    setFormData({ ...formData, imageUrl: "" });
+  };
 
   const handleCreateSupplier = async () => {
     try {
-      const token = localStorage.getItem("token")
+      const token = localStorage.getItem("token");
       const response = await fetch("http://localhost:8000/api/sources/", {
         method: "POST",
         headers: {
-          "Authorization": `Token ${token}`,
+          Authorization: `Token ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(newSupplier),
-      })
-      
+      });
+
       if (response.ok) {
-        const createdSource = await response.json()
-        setSources([...sources, createdSource])
-        setFormData({ ...formData, sourceId: createdSource.sourceId.toString() })
-        setShowNewSupplierDialog(false)
+        const createdSource = await response.json();
+        setSources([...sources, createdSource]);
+        setFormData({
+          ...formData,
+          sourceId: createdSource.sourceId.toString(),
+        });
+        setShowNewSupplierDialog(false);
         setNewSupplier({
           name: "",
           contactPerson: "",
           phone: "",
           email: "",
           address: "",
-        })
-        alert("Supplier created successfully!")
+        });
+        alert("Supplier created successfully!");
       } else {
-        alert("Failed to create supplier")
+        alert("Failed to create supplier");
       }
     } catch (error) {
-      console.error("Error creating supplier:", error)
-      alert("Error creating supplier")
+      console.error("Error creating supplier:", error);
+      alert("Error creating supplier");
     }
-  }
+  };
 
   const handleCreateCategory = async () => {
     try {
-      const token = localStorage.getItem("token")
+      const token = localStorage.getItem("token");
       const response = await fetch("http://localhost:8000/api/categories/", {
         method: "POST",
         headers: {
-          "Authorization": `Token ${token}`,
+          Authorization: `Token ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(newCategory),
-      })
-      
+      });
+
       if (response.ok) {
-        const createdCategory = await response.json()
-        setCategories([...categories, createdCategory])
-        setFormData({ ...formData, category: createdCategory.categoryId.toString() })
-        setShowNewCategoryDialog(false)
-        setNewCategory({ name: "" })
-        alert("Category created successfully!")
+        const createdCategory = await response.json();
+        setCategories([...categories, createdCategory]);
+        setFormData({
+          ...formData,
+          category: createdCategory.categoryId.toString(),
+        });
+        setShowNewCategoryDialog(false);
+        setNewCategory({ name: "" });
+        alert("Category created successfully!");
       } else {
-        alert("Failed to create category")
+        alert("Failed to create category");
       }
     } catch (error) {
-      console.error("Error creating category:", error)
-      alert("Error creating category")
+      console.error("Error creating category:", error);
+      alert("Error creating category");
     }
-  }
+  };
 
   const handleCreateSubcategory = async () => {
     if (!formData.category) {
-      alert("Please select a category first")
-      return
+      alert("Please select a category first");
+      return;
     }
-    
+
     try {
-      const token = localStorage.getItem("token")
+      const token = localStorage.getItem("token");
       const response = await fetch("http://localhost:8000/api/subcategories/", {
         method: "POST",
         headers: {
-          "Authorization": `Token ${token}`,
+          Authorization: `Token ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           ...newSubcategory,
           category: formData.category,
         }),
-      })
-      
+      });
+
       if (response.ok) {
-        const createdSubcategory = await response.json()
-        setSubcategories([...subcategories, createdSubcategory])
-        setFormData({ ...formData, subcategory: createdSubcategory.subcategoryId.toString() })
-        setShowNewSubcategoryDialog(false)
-        setNewSubcategory({ name: "" })
-        alert("Subcategory created successfully!")
+        const createdSubcategory = await response.json();
+        setSubcategories([...subcategories, createdSubcategory]);
+        setFormData({
+          ...formData,
+          subcategory: createdSubcategory.subcategoryId.toString(),
+        });
+        setShowNewSubcategoryDialog(false);
+        setNewSubcategory({ name: "" });
+        alert("Subcategory created successfully!");
       } else {
-        alert("Failed to create subcategory")
+        alert("Failed to create subcategory");
       }
     } catch (error) {
-      console.error("Error creating subcategory:", error)
-      alert("Error creating subcategory")
+      console.error("Error creating subcategory:", error);
+      alert("Error creating subcategory");
     }
-  }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
-    if (formData.status === 'Discount' && parseFloat(formData.discount) <= 0) {
-      alert('A discount greater than 0 is required for discount items.')
-      return
+    // Validate: if status is Discount, discount must be greater than 0
+    if (formData.status === "Discount" && parseFloat(formData.discount) <= 0) {
+      alert(
+        "Discount amount is required when status is set to 'Discount'. Please enter a discount percentage greater than 0.",
+      );
+      return;
     }
 
-    setIsUploading(true)
+    setIsUploading(true);
 
-    let imageUrl = formData.imageUrl
+    let imageUrl = formData.imageUrl;
 
     try {
       // Upload new image if selected
       if (imageFile) {
-        console.log("Uploading new image...")
-        const uploadedUrl = await uploadProductImage(imageFile)
-        
+        console.log("Uploading new image...");
+        const uploadedUrl = await uploadProductImage(imageFile);
+
         if (uploadedUrl) {
-          console.log("Image uploaded successfully:", uploadedUrl)
-          imageUrl = uploadedUrl
-          
+          console.log("Image uploaded successfully:", uploadedUrl);
+          imageUrl = uploadedUrl;
+
           // Delete old image if exists (only if it was successfully replaced)
           if (formData.imageUrl && formData.imageUrl !== uploadedUrl) {
-            await deleteProductImage(formData.imageUrl)
+            await deleteProductImage(formData.imageUrl);
           }
         } else {
-          console.error("Failed to upload image")
-          alert("Failed to upload image. Please try again.")
-          setIsUploading(false)
-          return
+          console.error("Failed to upload image");
+          alert("Failed to upload image. Please try again.");
+          setIsUploading(false);
+          return;
         }
       }
 
@@ -361,9 +383,11 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
         category: formData.category,
         subcategory: formData.subcategory,
         unit: formData.unit,
-        source: formData.sourceId,
+        sourceId: formData.sourceId,
         status: formData.status,
-        costPrice: formData.costPrice ? Number.parseFloat(formData.costPrice) : undefined,
+        costPrice: formData.costPrice
+          ? Number.parseFloat(formData.costPrice)
+          : undefined,
         salePrice: Number.parseFloat(formData.salePrice || formData.price),
         price: Number.parseFloat(formData.salePrice || formData.price),
         discount: Number.parseFloat(formData.discount),
@@ -371,14 +395,14 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
         minStock: Number.parseInt(formData.minStock),
         location: formData.location,
         imageUrl: imageUrl || undefined,
-      })
+      });
     } catch (error) {
-      console.error("Error in form submission:", error)
-      alert("An error occurred. Please try again.")
+      console.error("Error in form submission:", error);
+      alert("An error occurred. Please try again.");
     } finally {
-      setIsUploading(false)
+      setIsUploading(false);
     }
-  }
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -387,25 +411,36 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
         <div className="flex items-center gap-4">
           {imagePreview ? (
             <div className="relative w-32 h-32 rounded-lg border overflow-hidden">
-              <Image src={imagePreview || "/placeholder.svg"} alt="Product preview" fill className="object-cover" />
+              <Image
+                src={imagePreview || "/placeholder.svg"}
+                alt="Product preview"
+                fill
+                className="object-cover"
+              />
               <button
                 type="button"
                 onClick={handleRemoveImage}
-                className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
-              >
+                className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600">
                 <X className="h-4 w-4" />
               </button>
             </div>
           ) : (
             <label
               htmlFor="image"
-              className="w-32 h-32 flex flex-col items-center justify-center border-2 border-dashed rounded-lg cursor-pointer hover:border-blue-500 transition-colors"
-            >
+              className="w-32 h-32 flex flex-col items-center justify-center border-2 border-dashed rounded-lg cursor-pointer hover:border-blue-500 transition-colors">
               <Upload className="h-8 w-8 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground mt-2">Upload Image</span>
+              <span className="text-xs text-muted-foreground mt-2">
+                Upload Image
+              </span>
             </label>
           )}
-          <Input id="image" type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+          <Input
+            id="image"
+            type="file"
+            accept="image/*"
+            onChange={handleImageChange}
+            className="hidden"
+          />
         </div>
       </div>
 
@@ -435,7 +470,9 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
         <Textarea
           id="description"
           value={formData.description}
-          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          onChange={(e) =>
+            setFormData({ ...formData, description: e.target.value })
+          }
           required
         />
       </div>
@@ -447,11 +484,12 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
             <select
               id="category"
               value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, category: e.target.value })
+              }
               required
               disabled={isLoadingCategories}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            >
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
               <option value="">Select category</option>
               {categories.map((category) => (
                 <option key={category.categoryId} value={category.categoryId}>
@@ -464,8 +502,7 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
               variant="outline"
               size="icon"
               onClick={() => setShowNewCategoryDialog(true)}
-              title="Add new category"
-            >
+              title="Add new category">
               <Plus className="h-4 w-4" />
             </Button>
           </div>
@@ -476,20 +513,25 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
             <select
               id="subcategory"
               value={formData.subcategory}
-              onChange={(e) => setFormData({ ...formData, subcategory: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, subcategory: e.target.value })
+              }
               required
-              disabled={!formData.category || filteredSubcategories.length === 0}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            >
+              disabled={
+                !formData.category || filteredSubcategories.length === 0
+              }
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
               <option value="">
-                {!formData.category 
-                  ? "Select category first" 
-                  : filteredSubcategories.length === 0 
-                  ? "No subcategories available" 
-                  : "Select subcategory"}
+                {!formData.category
+                  ? "Select category first"
+                  : filteredSubcategories.length === 0
+                    ? "No subcategories available"
+                    : "Select subcategory"}
               </option>
               {filteredSubcategories.map((subcategory) => (
-                <option key={subcategory.subcategoryId} value={subcategory.subcategoryId}>
+                <option
+                  key={subcategory.subcategoryId}
+                  value={subcategory.subcategoryId}>
                   {subcategory.name}
                 </option>
               ))}
@@ -500,14 +542,13 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
               size="icon"
               onClick={() => {
                 if (!formData.category) {
-                  alert("Please select a category first")
+                  alert("Please select a category first");
                 } else {
-                  setShowNewSubcategoryDialog(true)
+                  setShowNewSubcategoryDialog(true);
                 }
               }}
               title="Add new subcategory"
-              disabled={!formData.category}
-            >
+              disabled={!formData.category}>
               <Plus className="h-4 w-4" />
             </Button>
           </div>
@@ -522,8 +563,7 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
             value={formData.unit}
             onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
             required
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-          >
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
             <option value="pcs">Pieces (pcs)</option>
             <option value="box">Box</option>
             <option value="kg">Kilogram (kg)</option>
@@ -538,10 +578,11 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
           <select
             id="status"
             value={formData.status}
-            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, status: e.target.value })
+            }
             required
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-          >
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
             <option value="Active">Active</option>
             <option value="Inactive">Inactive</option>
             <option value="Discount">Discount</option>
@@ -558,10 +599,14 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
             step="0.01"
             min="0"
             value={formData.costPrice}
-            onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, costPrice: e.target.value })
+            }
             placeholder="Optional: Original price from supplier"
           />
-          <p className="text-xs text-muted-foreground">Only visible to admin and managers</p>
+          <p className="text-xs text-muted-foreground">
+            Only visible to admin and managers
+          </p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="salePrice">Sale Price ($) - Customer Price</Label>
@@ -571,7 +616,13 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
             step="0.01"
             min="0"
             value={formData.salePrice}
-            onChange={(e) => setFormData({ ...formData, salePrice: e.target.value, price: e.target.value })}
+            onChange={(e) =>
+              setFormData({
+                ...formData,
+                salePrice: e.target.value,
+                price: e.target.value,
+              })
+            }
             required
             placeholder="Price customers will pay"
           />
@@ -580,7 +631,12 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="discount">Discount (%)</Label>
+          <Label htmlFor="discount">
+            Discount (%)
+            {formData.status === "Discount" && (
+              <span className="text-red-500 ml-1">*</span>
+            )}
+          </Label>
           <Input
             id="discount"
             type="number"
@@ -588,9 +644,16 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
             min="0"
             max="100"
             value={formData.discount}
-            onChange={(e) => setFormData({ ...formData, discount: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, discount: e.target.value })
+            }
             required
           />
+          {formData.status === "Discount" && (
+            <p className="text-xs text-red-500">
+              Discount amount is required for Discount status
+            </p>
+          )}
         </div>
       </div>
 
@@ -600,10 +663,11 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
           <select
             id="source"
             value={formData.sourceId}
-            onChange={(e) => setFormData({ ...formData, sourceId: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, sourceId: e.target.value })
+            }
             disabled={isLoadingSources}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-          >
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
             <option value="">Select supplier (optional)</option>
             {sources.map((source) => (
               <option key={source.sourceId} value={source.sourceId}>
@@ -616,8 +680,7 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
             variant="outline"
             size="icon"
             onClick={() => setShowNewSupplierDialog(true)}
-            title="Add new supplier"
-          >
+            title="Add new supplier">
             <Plus className="h-4 w-4" />
           </Button>
         </div>
@@ -631,7 +694,9 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
             type="number"
             min="0"
             value={formData.stock}
-            onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, stock: e.target.value })
+            }
             required
           />
         </div>
@@ -642,7 +707,9 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
             type="number"
             min="0"
             value={formData.minStock}
-            onChange={(e) => setFormData({ ...formData, minStock: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, minStock: e.target.value })
+            }
             required
           />
         </div>
@@ -653,7 +720,9 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
         <Input
           id="location"
           value={formData.location}
-          onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+          onChange={(e) =>
+            setFormData({ ...formData, location: e.target.value })
+          }
           required
           placeholder="e.g., Warehouse A, Shelf 12"
         />
@@ -661,12 +730,11 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
 
       <div className="flex justify-between gap-2">
         {item && onDelete && (
-          <Button 
-            type="button" 
-            variant="destructive" 
+          <Button
+            type="button"
+            variant="destructive"
             onClick={onDelete}
-            disabled={isUploading}
-          >
+            disabled={isUploading}>
             Delete Item
           </Button>
         )}
@@ -674,14 +742,19 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancel
           </Button>
-          <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={isUploading}>
+          <Button
+            type="submit"
+            className="bg-blue-600 hover:bg-blue-700"
+            disabled={isUploading}>
             {isUploading ? "Uploading..." : item ? "Update Item" : "Add Item"}
           </Button>
         </div>
       </div>
 
       {/* New Supplier Dialog */}
-      <Dialog open={showNewSupplierDialog} onOpenChange={setShowNewSupplierDialog}>
+      <Dialog
+        open={showNewSupplierDialog}
+        onOpenChange={setShowNewSupplierDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Add New Supplier</DialogTitle>
@@ -695,7 +768,9 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
               <Input
                 id="supplier-name"
                 value={newSupplier.name}
-                onChange={(e) => setNewSupplier({ ...newSupplier, name: e.target.value })}
+                onChange={(e) =>
+                  setNewSupplier({ ...newSupplier, name: e.target.value })
+                }
                 required
                 placeholder="Enter supplier name"
               />
@@ -705,7 +780,12 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
               <Input
                 id="supplier-contact"
                 value={newSupplier.contactPerson}
-                onChange={(e) => setNewSupplier({ ...newSupplier, contactPerson: e.target.value })}
+                onChange={(e) =>
+                  setNewSupplier({
+                    ...newSupplier,
+                    contactPerson: e.target.value,
+                  })
+                }
                 placeholder="Enter contact person"
               />
             </div>
@@ -714,7 +794,9 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
               <Input
                 id="supplier-phone"
                 value={newSupplier.phone}
-                onChange={(e) => setNewSupplier({ ...newSupplier, phone: e.target.value })}
+                onChange={(e) =>
+                  setNewSupplier({ ...newSupplier, phone: e.target.value })
+                }
                 placeholder="Enter phone number"
               />
             </div>
@@ -724,7 +806,9 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
                 id="supplier-email"
                 type="email"
                 value={newSupplier.email}
-                onChange={(e) => setNewSupplier({ ...newSupplier, email: e.target.value })}
+                onChange={(e) =>
+                  setNewSupplier({ ...newSupplier, email: e.target.value })
+                }
                 placeholder="Enter email"
               />
             </div>
@@ -733,7 +817,9 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
               <Textarea
                 id="supplier-address"
                 value={newSupplier.address}
-                onChange={(e) => setNewSupplier({ ...newSupplier, address: e.target.value })}
+                onChange={(e) =>
+                  setNewSupplier({ ...newSupplier, address: e.target.value })
+                }
                 placeholder="Enter address"
                 rows={3}
               />
@@ -744,18 +830,22 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
               type="button"
               variant="outline"
               onClick={() => {
-                setShowNewSupplierDialog(false)
-                setNewSupplier({ name: "", contactPerson: "", phone: "", email: "", address: "" })
-              }}
-            >
+                setShowNewSupplierDialog(false);
+                setNewSupplier({
+                  name: "",
+                  contactPerson: "",
+                  phone: "",
+                  email: "",
+                  address: "",
+                });
+              }}>
               Cancel
             </Button>
             <Button
               type="button"
               onClick={handleCreateSupplier}
               disabled={!newSupplier.name}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
+              className="bg-blue-600 hover:bg-blue-700">
               Add Supplier
             </Button>
           </div>
@@ -763,7 +853,9 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
       </Dialog>
 
       {/* New Category Dialog */}
-      <Dialog open={showNewCategoryDialog} onOpenChange={setShowNewCategoryDialog}>
+      <Dialog
+        open={showNewCategoryDialog}
+        onOpenChange={setShowNewCategoryDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Add New Category</DialogTitle>
@@ -777,7 +869,9 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
               <Input
                 id="category-name"
                 value={newCategory.name}
-                onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
+                onChange={(e) =>
+                  setNewCategory({ ...newCategory, name: e.target.value })
+                }
                 required
                 placeholder="Enter category name"
               />
@@ -788,18 +882,16 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
               type="button"
               variant="outline"
               onClick={() => {
-                setShowNewCategoryDialog(false)
-                setNewCategory({ name: "" })
-              }}
-            >
+                setShowNewCategoryDialog(false);
+                setNewCategory({ name: "" });
+              }}>
               Cancel
             </Button>
             <Button
               type="button"
               onClick={handleCreateCategory}
               disabled={!newCategory.name}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
+              className="bg-blue-600 hover:bg-blue-700">
               Add Category
             </Button>
           </div>
@@ -807,12 +899,18 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
       </Dialog>
 
       {/* New Subcategory Dialog */}
-      <Dialog open={showNewSubcategoryDialog} onOpenChange={setShowNewSubcategoryDialog}>
+      <Dialog
+        open={showNewSubcategoryDialog}
+        onOpenChange={setShowNewSubcategoryDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Add New Subcategory</DialogTitle>
             <DialogDescription>
-              Create a new subcategory under {categories.find(c => c.categoryId.toString() === formData.category)?.name || "the selected category"}.
+              Create a new subcategory under{" "}
+              {categories.find(
+                (c) => c.categoryId.toString() === formData.category,
+              )?.name || "the selected category"}
+              .
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -821,7 +919,9 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
               <Input
                 id="subcategory-name"
                 value={newSubcategory.name}
-                onChange={(e) => setNewSubcategory({ ...newSubcategory, name: e.target.value })}
+                onChange={(e) =>
+                  setNewSubcategory({ ...newSubcategory, name: e.target.value })
+                }
                 required
                 placeholder="Enter subcategory name"
               />
@@ -832,23 +932,21 @@ export function InventoryForm({ item, onSubmit, onCancel, onDelete }: InventoryF
               type="button"
               variant="outline"
               onClick={() => {
-                setShowNewSubcategoryDialog(false)
-                setNewSubcategory({ name: "" })
-              }}
-            >
+                setShowNewSubcategoryDialog(false);
+                setNewSubcategory({ name: "" });
+              }}>
               Cancel
             </Button>
             <Button
               type="button"
               onClick={handleCreateSubcategory}
               disabled={!newSubcategory.name}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
+              className="bg-blue-600 hover:bg-blue-700">
               Add Subcategory
             </Button>
           </div>
         </DialogContent>
       </Dialog>
     </form>
-  )
+  );
 }

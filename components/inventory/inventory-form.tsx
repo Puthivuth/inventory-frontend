@@ -2,7 +2,7 @@
 
 import type React from "react";
 import { useState, useEffect } from "react";
-import type { InventoryItem } from "@/types";
+import type { InventoryItem, InventoryFormData } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,9 +40,7 @@ interface SubCategory {
 
 interface InventoryFormProps {
   item?: InventoryItem | null;
-  onSubmit: (
-    data: Omit<InventoryItem, "id" | "createdAt" | "updatedAt" | "userId">,
-  ) => void;
+  onSubmit: (data: InventoryFormData) => void;
   onCancel: () => void;
   onDelete?: () => void;
 }

@@ -25,6 +25,11 @@ export interface InventoryItem {
   updatedAt: string;
 }
 
+export type InventoryFormData = Omit<
+  InventoryItem,
+  "id" | "productId" | "createdAt" | "updatedAt" | "userId"
+>;
+
 export interface InvoiceItem {
   id: string;
   inventoryItemId: string;

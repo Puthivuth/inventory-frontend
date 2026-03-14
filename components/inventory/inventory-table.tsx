@@ -15,7 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Search, Filter, X } from "lucide-react";
 import { InventoryDialog } from "./inventory-dialog";
-import { AddStockDialog } from "./add-stock-dialog";
+
 import { deleteInventoryItem } from "@/lib/api";
 import { canWrite, isManagerOrAdmin } from "@/lib/permissions";
 import Image from "next/image";
@@ -90,10 +90,6 @@ export function InventoryTable({ items, onUpdate }: InventoryTableProps) {
   const handleDialogClose = () => {
     setIsDialogOpen(false);
     setEditingItem(null);
-  };
-
-  const calculateFinalPrice = (price: number, discount: number) => {
-    return price - (price * discount) / 100;
   };
 
   return (
@@ -195,38 +191,25 @@ export function InventoryTable({ items, onUpdate }: InventoryTableProps) {
                 Image
               </TableHead>
               <TableHead className="text-xs sm:text-sm min-w-[100px]">
-                SKU
-              </TableHead>
-              <TableHead className="text-xs sm:text-sm min-w-[150px]">
                 Name
+              </TableHead>
+              <TableHead className="text-xs sm:text-sm min-w-[100px]">
+                SKU
               </TableHead>
               <TableHead className="text-xs sm:text-sm min-w-[100px]">
                 Category
               </TableHead>
-              <TableHead className="text-xs sm:text-sm min-w-[100px]">
-                Status
-              </TableHead>
-              {isManagerOrAdmin() && (
-                <TableHead className="text-right text-xs sm:text-sm min-w-[100px]">
-                  Cost Price
-                </TableHead>
-              )}
               <TableHead className="text-right text-xs sm:text-sm min-w-[100px]">
-                Sale Price
+                Price
               </TableHead>
-              <TableHead className="text-right text-xs sm:text-sm min-w-[90px]">
-                Discount
-              </TableHead>
-              <TableHead className="text-right text-xs sm:text-sm min-w-[100px]">
-                Final Price
-              </TableHead>
-              {isManagerOrAdmin() && (
-                <TableHead className="text-right text-xs sm:text-sm min-w-[100px]">
-                  Profit/Unit
-                </TableHead>
-              )}
               <TableHead className="text-right text-xs sm:text-sm min-w-[80px]">
                 Stock
+              </TableHead>
+              <TableHead className="text-right text-xs sm:text-sm min-w-[80px]">
+                Sold
+              </TableHead>
+              <TableHead className="text-right text-xs sm:text-sm min-w-[100px]">
+                Status
               </TableHead>
               <TableHead className="text-right text-xs sm:text-sm min-w-[120px]">
                 Actions
@@ -237,7 +220,7 @@ export function InventoryTable({ items, onUpdate }: InventoryTableProps) {
             {filteredItems.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={isManagerOrAdmin() ? 12 : 10}
+                  colSpan={9}
                   className="text-center text-muted-foreground">
                   No items found
                 </TableCell>
@@ -246,8 +229,7 @@ export function InventoryTable({ items, onUpdate }: InventoryTableProps) {
               filteredItems.map((item) => (
                 <TableRow
                   key={item.id}
-                  className="cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => handleEdit(item)}>
+                  className="hover:bg-muted/50 transition-colors">
                   <TableCell className="py-2">
                     <div className="w-20 h-20 relative rounded overflow-hidden bg-muted">
                       {item.imageUrl ? (
@@ -264,23 +246,44 @@ export function InventoryTable({ items, onUpdate }: InventoryTableProps) {
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="font-mono text-base py-2">
-                    {item.sku}
-                  </TableCell>
                   <TableCell className="py-2">
-                    <div>
+                    <div
+                      className="cursor-pointer"
+                      onClick={() => handleEdit(item)}>
                       <div className="font-medium text-base">{item.name}</div>
                       <div className="text-sm text-muted-foreground">
                         {item.description}
                       </div>
                     </div>
                   </TableCell>
+                  <TableCell className="font-mono text-base py-2">
+                    <span
+                      className="cursor-pointer hover:underline"
+                      onClick={() => handleEdit(item)}>
+                      {item.sku}
+                    </span>
+                  </TableCell>
                   <TableCell className="py-2">
                     <Badge variant="secondary" className="text-sm px-3 py-1">
                       {item.category}
                     </Badge>
                   </TableCell>
-                  <TableCell className="py-2">
+                  <TableCell className="text-right text-base py-2 font-medium">
+                    ${item.salePrice.toFixed(2)}
+                  </TableCell>
+                  <TableCell className="text-right py-2">
+                    <Badge
+                      variant={
+                        item.stock <= item.minStock ? "destructive" : "default"
+                      }
+                      className={`text-sm px-3 py-1 ${item.stock <= item.minStock ? "" : "bg-blue-600"}`}>
+                      {item.stock}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right py-2">
+                    <span className="text-muted-foreground">0</span>
+                  </TableCell>
+                  <TableCell className="text-right py-2">
                     <Badge
                       variant={
                         item.status === "Active"
@@ -303,79 +306,34 @@ export function InventoryTable({ items, onUpdate }: InventoryTableProps) {
                       {item.status}
                     </Badge>
                   </TableCell>
-                  {isManagerOrAdmin() && (
-                    <TableCell className="text-right text-base py-2">
-                      {item.costPrice !== undefined ? (
-                        <span className="text-muted-foreground">
-                          ${item.costPrice.toFixed(2)}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                  )}
-                  <TableCell className="text-right text-base py-2 font-medium">
-                    ${item.salePrice.toFixed(2)}
-                  </TableCell>
-                  <TableCell className="text-right py-2">
-                    {(item.discount ?? 0) > 0 ? (
-                      <Badge
-                        variant="outline"
-                        className="bg-blue-50 text-blue-700 text-sm px-3 py-1">
-                        {item.discount}%
-                      </Badge>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right font-medium text-base py-2">
-                    $
-                    {calculateFinalPrice(
-                      item.salePrice,
-                      item.discount ?? 0,
-                    ).toFixed(2)}
-                  </TableCell>
-                  {isManagerOrAdmin() && (
-                    <TableCell className="text-right py-2">
-                      {item.costPrice !== undefined ? (
-                        <Badge
-                          variant="outline"
-                          className={`text-sm px-3 py-1 ${
-                            calculateFinalPrice(
-                              item.salePrice,
-                              item.discount ?? 0,
-                            ) > item.costPrice
-                              ? "bg-green-50 text-green-700"
-                              : "bg-red-50 text-red-700"
-                          }`}>
-                          $
-                          {(
-                            calculateFinalPrice(
-                              item.salePrice,
-                              item.discount ?? 0,
-                            ) - item.costPrice
-                          ).toFixed(2)}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                  )}
-                  <TableCell className="text-right py-2">
-                    <Badge
-                      variant={
-                        item.stock <= item.minStock ? "destructive" : "default"
-                      }
-                      className={`text-sm px-3 py-1 ${item.stock <= item.minStock ? "" : "bg-blue-600"}`}>
-                      {item.stock}
-                    </Badge>
-                  </TableCell>
                   <TableCell className="text-right py-2">
                     {canWrite() && (
-                      <div
-                        className="flex justify-end gap-2"
-                        onClick={(e) => e.stopPropagation()}>
-                        <AddStockDialog item={item} onSuccess={onUpdate} />
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(item)}>
+                          Edit
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={async () => {
+                            if (
+                              confirm(
+                                "Are you sure you want to delete this item?",
+                              )
+                            ) {
+                              try {
+                                await deleteInventoryItem(item.id);
+                                onUpdate();
+                              } catch (error) {
+                                console.error("Error deleting item:", error);
+                              }
+                            }
+                          }}>
+                          Delete
+                        </Button>
                       </div>
                     )}
                   </TableCell>

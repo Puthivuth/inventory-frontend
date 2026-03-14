@@ -590,24 +590,7 @@ export function InventoryForm({
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="costPrice">Cost Price ($) - Supplier Price</Label>
-          <Input
-            id="costPrice"
-            type="number"
-            step="0.01"
-            min="0"
-            value={formData.costPrice}
-            onChange={(e) =>
-              setFormData({ ...formData, costPrice: e.target.value })
-            }
-            placeholder="Optional: Original price from supplier"
-          />
-          <p className="text-xs text-muted-foreground">
-            Only visible to admin and managers
-          </p>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="salePrice">Sale Price ($) - Customer Price</Label>
+          <Label htmlFor="salePrice">Sale Price ($)</Label>
           <Input
             id="salePrice"
             type="number"
@@ -624,6 +607,23 @@ export function InventoryForm({
             required
             placeholder="Price customers will pay"
           />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="costPrice">Cost Price ($)</Label>
+          <Input
+            id="costPrice"
+            type="number"
+            step="0.01"
+            min="0"
+            value={formData.costPrice}
+            onChange={(e) =>
+              setFormData({ ...formData, costPrice: e.target.value })
+            }
+            placeholder="Optional: Original price from supplier"
+          />
+          <p className="text-xs text-muted-foreground">
+            Only visible to admin and managers
+          </p>
         </div>
       </div>
 

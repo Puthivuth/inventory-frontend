@@ -106,3 +106,31 @@ export interface PurchaseOrder {
   updatedAt: string;
   userId?: string;
 }
+
+export interface ProductAssociation {
+  associationId: number;
+  product1: number;
+  product1Id: number;
+  product1Name: string;
+  product1Image: string | null;
+  product2: number;
+  product2Id: number;
+  product2Name: string;
+  product2Image: string | null;
+  frequency: number;
+  associationPercentage: number;
+  totalProduct1Purchases: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RelatedProduct {
+  productId: number;
+  productName: string;
+  description: string;
+  image: string | null;
+  skuCode: string;
+  salePrice: string;
+  associationPercentage: number;
+  frequency: number;
+}

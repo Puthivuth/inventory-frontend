@@ -21,6 +21,7 @@ import {
   FileText,
   RefreshCw,
   XCircle,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PurchaseOrderDialog } from "./purchase-order-dialog";
@@ -49,16 +50,17 @@ interface Invoice {
 export function PurchaseOrderTable() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [isInvoiceGeneratorOpen, setIsInvoiceGeneratorOpen] = useState(false);
   const [invoiceToGenerate, setInvoiceToGenerate] = useState<Invoice | null>(
-    null
+    null,
   );
   const [checkingPayments, setCheckingPayments] = useState<Set<number>>(
-    new Set()
+    new Set(),
   );
 
   useEffect(() => {
@@ -74,15 +76,21 @@ export function PurchaseOrderTable() {
 
   const fetchInvoices = async () => {
     try {
+      setError(null);
       const data = await getInvoices();
       // Sort by createdAt descending (newest first)
       const sortedData = data.sort(
         (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       );
       setInvoices(sortedData);
     } catch (error) {
       console.error("Error fetching invoices:", error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to load invoices. Make sure you are logged in.";
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -92,7 +100,7 @@ export function PurchaseOrderTable() {
     // Find all pending KHQR invoices with MD5 hash
     const pendingKHQRInvoices = invoices.filter(
       (inv) =>
-        inv.status === "pending" && inv.paymentMethod === "KHQR" && inv.khqrMd5
+        inv.status === "pending" && inv.paymentMethod === "KHQR" && inv.khqrMd5,
     );
 
     if (pendingKHQRInvoices.length === 0) {
@@ -124,7 +132,7 @@ export function PurchaseOrderTable() {
             Authorization: `Token ${token}`,
             "Content-Type": "application/json",
           },
-        }
+        },
       );
 
       if (response.ok) {
@@ -143,7 +151,7 @@ export function PurchaseOrderTable() {
     } catch (error) {
       console.error(
         `❌ Error checking payment for invoice #${invoiceId}:`,
-        error
+        error,
       );
     } finally {
       setCheckingPayments((prev) => {
@@ -169,7 +177,7 @@ export function PurchaseOrderTable() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ status: "Paid" }),
-        }
+        },
       );
 
       if (response.ok) {
@@ -199,7 +207,7 @@ export function PurchaseOrderTable() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ status: "Cancelled" }),
-        }
+        },
       );
 
       if (response.ok) {
@@ -227,7 +235,7 @@ export function PurchaseOrderTable() {
           headers: {
             Authorization: `Token ${token}`,
           },
-        }
+        },
       );
 
       if (response.ok || response.status === 204) {
@@ -252,7 +260,7 @@ export function PurchaseOrderTable() {
           headers: {
             Authorization: `Token ${token}`,
           },
-        }
+        },
       );
 
       if (response.ok) {
@@ -316,6 +324,24 @@ export function PurchaseOrderTable() {
 
   return (
     <div className="space-y-4">
+      {/* Error Alert */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+          <div className="flex-1">
+            <h3 className="font-semibold text-red-900">Error Loading Orders</h3>
+            <p className="text-sm text-red-800 mt-1">{error}</p>
+            <Button
+              onClick={() => fetchInvoices()}
+              size="sm"
+              className="mt-3 bg-red-600 hover:bg-red-700">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Payment checking notification */}
       {checkingPayments.size > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-2">
@@ -426,10 +452,29 @@ export function PurchaseOrderTable() {
           <TableBody>
             {filteredInvoices.length === 0 ? (
               <TableRow>
-                <TableCell
-                  colSpan={9}
-                  className="text-center text-muted-foreground">
-                  No orders found
+                <TableCell colSpan={9} className="text-center py-8">
+                  <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                    <FileText className="h-8 w-8 opacity-40" />
+                    <div>
+                      {invoices.length === 0 ? (
+                        <>
+                          <p className="font-medium">No orders yet</p>
+                          <p className="text-xs">
+                            Create your first purchase order to get started
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="font-medium">
+                            No orders match your filters
+                          </p>
+                          <p className="text-xs">
+                            Try adjusting your search or status filter
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (

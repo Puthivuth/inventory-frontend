@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { uploadProductImage, deleteProductImage } from "@/lib/api";
-import { Upload, X, Plus } from "lucide-react";
+import { Upload, X, Plus, ArrowLeft } from "lucide-react";
 import Image from "next/image";
 import {
   Dialog,
@@ -43,6 +43,7 @@ interface InventoryFormProps {
   onSubmit: (data: InventoryFormData) => void;
   onCancel: () => void;
   onDelete?: () => void;
+  isLoading?: boolean;
 }
 
 export function InventoryForm({
@@ -50,6 +51,7 @@ export function InventoryForm({
   onSubmit,
   onCancel,
   onDelete,
+  isLoading = false,
 }: InventoryFormProps) {
   const [formData, setFormData] = useState({
     name: "",
@@ -62,7 +64,7 @@ export function InventoryForm({
     status: "Active",
     costPrice: "",
     salePrice: "",
-    price: "", // deprecated, for backward compatibility
+    price: "",
     discount: "0",
     stock: "",
     minStock: "",
@@ -98,13 +100,11 @@ export function InventoryForm({
     name: "",
   });
 
-  // Fetch sources, categories, and subcategories on mount
   useEffect(() => {
     const fetchData = async () => {
       try {
         const token = localStorage.getItem("token");
 
-        // Fetch sources
         const sourcesResponse = await fetch(
           "http://localhost:8000/api/sources/",
           {
@@ -119,7 +119,6 @@ export function InventoryForm({
           setSources(sourcesData);
         }
 
-        // Fetch categories
         const categoriesResponse = await fetch(
           "http://localhost:8000/api/categories/",
           {
@@ -134,7 +133,6 @@ export function InventoryForm({
           setCategories(categoriesData);
         }
 
-        // Fetch subcategories
         const subcategoriesResponse = await fetch(
           "http://localhost:8000/api/subcategories/",
           {
@@ -158,7 +156,6 @@ export function InventoryForm({
     fetchData();
   }, []);
 
-  // Filter subcategories when category changes
   useEffect(() => {
     if (formData.category) {
       const filtered = subcategories.filter(
@@ -166,7 +163,6 @@ export function InventoryForm({
       );
       setFilteredSubcategories(filtered);
 
-      // Only reset subcategory if it's not in the filtered list AND we're not loading an item
       if (
         formData.subcategory &&
         !filtered.some(
@@ -222,7 +218,6 @@ export function InventoryForm({
 
   const handleRemoveImage = async () => {
     if (formData.imageUrl && !imageFile) {
-      // Delete from storage if it's an existing image
       await deleteProductImage(formData.imageUrl);
     }
     setImageFile(null);
@@ -259,11 +254,18 @@ export function InventoryForm({
         });
         alert("Supplier created successfully!");
       } else {
-        alert("Failed to create supplier");
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage =
+          errorData.detail ||
+          errorData.error ||
+          Object.values(errorData).join(", ") ||
+          "Failed to create supplier";
+        console.error("Error creating supplier:", errorData);
+        alert(errorMessage);
       }
     } catch (error) {
       console.error("Error creating supplier:", error);
-      alert("Error creating supplier");
+      alert(error instanceof Error ? error.message : "Error creating supplier");
     }
   };
 
@@ -290,11 +292,18 @@ export function InventoryForm({
         setNewCategory({ name: "" });
         alert("Category created successfully!");
       } else {
-        alert("Failed to create category");
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage =
+          errorData.detail ||
+          errorData.error ||
+          Object.values(errorData).join(", ") ||
+          "Failed to create category";
+        console.error("Error creating category:", errorData);
+        alert(errorMessage);
       }
     } catch (error) {
       console.error("Error creating category:", error);
-      alert("Error creating category");
+      alert(error instanceof Error ? error.message : "Error creating category");
     }
   };
 
@@ -329,18 +338,54 @@ export function InventoryForm({
         setNewSubcategory({ name: "" });
         alert("Subcategory created successfully!");
       } else {
-        alert("Failed to create subcategory");
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage =
+          errorData.detail ||
+          errorData.error ||
+          Object.values(errorData).join(", ") ||
+          "Failed to create subcategory";
+        console.error("Error creating subcategory:", errorData);
+        alert(errorMessage);
       }
     } catch (error) {
       console.error("Error creating subcategory:", error);
-      alert("Error creating subcategory");
+      alert(
+        error instanceof Error ? error.message : "Error creating subcategory",
+      );
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate: if status is Discount, discount must be greater than 0
+    // Validate required fields
+    const requiredFields = {
+      name: "Product Name",
+      description: "Description",
+      sku: "SKU",
+      category: "Category",
+      subcategory: "Subcategory",
+      salePrice: "Sale Price",
+      stock: "Stock Quantity",
+      minStock: "Reorder Level",
+      location: "Storage Location",
+    };
+
+    const missingFields: string[] = [];
+    for (const [field, label] of Object.entries(requiredFields)) {
+      const value = (formData as any)[field];
+      if (!value || value === "") {
+        missingFields.push(label);
+      }
+    }
+
+    if (missingFields.length > 0) {
+      alert(
+        `Please fill in the following required fields:\n\n${missingFields.join("\n")}`,
+      );
+      return;
+    }
+
     if (formData.status === "Discount" && parseFloat(formData.discount) <= 0) {
       alert(
         "Discount amount is required when status is set to 'Discount'. Please enter a discount percentage greater than 0.",
@@ -353,21 +398,16 @@ export function InventoryForm({
     let imageUrl = formData.imageUrl;
 
     try {
-      // Upload new image if selected
       if (imageFile) {
-        console.log("Uploading new image...");
         const uploadedUrl = await uploadProductImage(imageFile);
 
         if (uploadedUrl) {
-          console.log("Image uploaded successfully:", uploadedUrl);
           imageUrl = uploadedUrl;
 
-          // Delete old image if exists (only if it was successfully replaced)
           if (formData.imageUrl && formData.imageUrl !== uploadedUrl) {
             await deleteProductImage(formData.imageUrl);
           }
         } else {
-          console.error("Failed to upload image");
           alert("Failed to upload image. Please try again.");
           setIsUploading(false);
           return;
@@ -381,16 +421,20 @@ export function InventoryForm({
         category: formData.category,
         subcategory: formData.subcategory,
         unit: formData.unit,
-        sourceId: formData.sourceId,
+        sourceId: formData.sourceId || undefined,
         status: formData.status,
         costPrice: formData.costPrice
           ? Number.parseFloat(formData.costPrice)
           : undefined,
-        salePrice: Number.parseFloat(formData.salePrice || formData.price),
-        price: Number.parseFloat(formData.salePrice || formData.price),
-        discount: Number.parseFloat(formData.discount),
-        stock: Number.parseInt(formData.stock),
-        minStock: Number.parseInt(formData.minStock),
+        salePrice: formData.salePrice
+          ? Number.parseFloat(formData.salePrice)
+          : 0,
+        price: formData.salePrice ? Number.parseFloat(formData.salePrice) : 0,
+        discount: formData.discount ? Number.parseFloat(formData.discount) : 0,
+        stock: formData.stock ? Number.parseInt(formData.stock, 10) : 0,
+        minStock: formData.minStock
+          ? Number.parseInt(formData.minStock, 10)
+          : 0,
         location: formData.location,
         imageUrl: imageUrl || undefined,
       });
@@ -403,353 +447,415 @@ export function InventoryForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="image">Product Image</Label>
-        <div className="flex items-center gap-4">
-          {imagePreview ? (
-            <div className="relative w-32 h-32 rounded-lg border overflow-hidden">
-              <Image
-                src={imagePreview || "/placeholder.svg"}
-                alt="Product preview"
-                fill
-                className="object-cover"
-              />
-              <button
-                type="button"
-                onClick={handleRemoveImage}
-                className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600">
-                <X className="h-4 w-4" />
-              </button>
+    <div className="min-h-screen bg-gray-50">
+      {/* Form */}
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <form onSubmit={handleSubmit} className="space-y-8">
+          {/* Image Upload Section */}
+          <div className="bg-white rounded-lg border p-6">
+            <Label className="text-base font-semibold mb-4 block">
+              Product Image
+            </Label>
+            <div className="flex items-center gap-6">
+              {imagePreview ? (
+                <div className="relative w-32 h-32 rounded-lg border overflow-hidden bg-gray-50">
+                  <Image
+                    src={imagePreview || "/placeholder.svg"}
+                    alt="Product preview"
+                    fill
+                    className="object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleRemoveImage}
+                    className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-lg">
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ) : (
+                <label
+                  htmlFor="image"
+                  className="w-32 h-32 flex flex-col items-center justify-center border-2 border-dashed rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all bg-gray-50">
+                  <Upload className="h-8 w-8 text-gray-400" />
+                  <span className="text-xs text-gray-500 mt-2">Upload</span>
+                </label>
+              )}
+              <div className="flex-1">
+                <Input
+                  id="image"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="hidden"
+                />
+                <p className="text-sm text-gray-500">
+                  Recommended: Square image, max 5MB
+                </p>
+                {!imagePreview && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => document.getElementById("image")?.click()}
+                    className="mt-2">
+                    Choose Image
+                  </Button>
+                )}
+              </div>
             </div>
-          ) : (
-            <label
-              htmlFor="image"
-              className="w-32 h-32 flex flex-col items-center justify-center border-2 border-dashed rounded-lg cursor-pointer hover:border-blue-500 transition-colors">
-              <Upload className="h-8 w-8 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground mt-2">
-                Upload Image
-              </span>
-            </label>
-          )}
-          <Input
-            id="image"
-            type="file"
-            accept="image/*"
-            onChange={handleImageChange}
-            className="hidden"
-          />
-        </div>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="name">Product Name</Label>
-          <Input
-            id="name"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="sku">SKU</Label>
-          <Input
-            id="sku"
-            value={formData.sku}
-            onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-            required
-          />
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="description">Description</Label>
-        <Textarea
-          id="description"
-          value={formData.description}
-          onChange={(e) =>
-            setFormData({ ...formData, description: e.target.value })
-          }
-          required
-        />
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="category">Category</Label>
-          <div className="flex gap-2">
-            <select
-              id="category"
-              value={formData.category}
-              onChange={(e) =>
-                setFormData({ ...formData, category: e.target.value })
-              }
-              required
-              disabled={isLoadingCategories}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
-              <option value="">Select category</option>
-              {categories.map((category) => (
-                <option key={category.categoryId} value={category.categoryId}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={() => setShowNewCategoryDialog(true)}
-              title="Add new category">
-              <Plus className="h-4 w-4" />
-            </Button>
           </div>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="subcategory">Subcategory</Label>
-          <div className="flex gap-2">
-            <select
-              id="subcategory"
-              value={formData.subcategory}
-              onChange={(e) =>
-                setFormData({ ...formData, subcategory: e.target.value })
-              }
-              required
-              disabled={
-                !formData.category || filteredSubcategories.length === 0
-              }
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
-              <option value="">
-                {!formData.category
-                  ? "Select category first"
-                  : filteredSubcategories.length === 0
-                    ? "No subcategories available"
-                    : "Select subcategory"}
-              </option>
-              {filteredSubcategories.map((subcategory) => (
-                <option
-                  key={subcategory.subcategoryId}
-                  value={subcategory.subcategoryId}>
-                  {subcategory.name}
-                </option>
-              ))}
-            </select>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={() => {
-                if (!formData.category) {
-                  alert("Please select a category first");
-                } else {
-                  setShowNewSubcategoryDialog(true);
-                }
-              }}
-              title="Add new subcategory"
-              disabled={!formData.category}>
-              <Plus className="h-4 w-4" />
-            </Button>
+
+          {/* Basic Information */}
+          <div className="bg-white rounded-lg border p-6">
+            <h2 className="text-lg font-semibold mb-4">Basic Information</h2>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="name" className="text-sm font-medium">
+                  Product Name *
+                </Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                  required
+                  className="mt-1.5"
+                  placeholder="Enter product name"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="sku" className="text-sm font-medium">
+                  SKU *
+                </Label>
+                <Input
+                  id="sku"
+                  value={formData.sku}
+                  onChange={(e) =>
+                    setFormData({ ...formData, sku: e.target.value })
+                  }
+                  required
+                  className="mt-1.5"
+                  placeholder="Enter SKU"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="description" className="text-sm font-medium">
+                  Description *
+                </Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
+                  required
+                  className="mt-1.5"
+                  rows={3}
+                  placeholder="Enter product description"
+                />
+              </div>
+            </div>
           </div>
-        </div>
+
+          {/* Category & Classification */}
+          <div className="bg-white rounded-lg border p-6">
+            <h2 className="text-lg font-semibold mb-4">
+              Category & Classification
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="category" className="text-sm font-medium">
+                  Category *
+                </Label>
+                <div className="flex gap-2 mt-1.5">
+                  <select
+                    id="category"
+                    value={formData.category}
+                    onChange={(e) =>
+                      setFormData({ ...formData, category: e.target.value })
+                    }
+                    required
+                    disabled={isLoadingCategories}
+                    className="flex-1 h-10 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="">Select category</option>
+                    {categories.map((category) => (
+                      <option
+                        key={category.categoryId}
+                        value={category.categoryId}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setShowNewCategoryDialog(true)}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="subcategory" className="text-sm font-medium">
+                  Subcategory *
+                </Label>
+                <div className="flex gap-2 mt-1.5">
+                  <select
+                    id="subcategory"
+                    value={formData.subcategory}
+                    onChange={(e) =>
+                      setFormData({ ...formData, subcategory: e.target.value })
+                    }
+                    required
+                    disabled={
+                      !formData.category || filteredSubcategories.length === 0
+                    }
+                    className="flex-1 h-10 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100">
+                    <option value="">
+                      {!formData.category
+                        ? "Select category first"
+                        : filteredSubcategories.length === 0
+                          ? "No subcategories"
+                          : "Select subcategory"}
+                    </option>
+                    {filteredSubcategories.map((subcategory) => (
+                      <option
+                        key={subcategory.subcategoryId}
+                        value={subcategory.subcategoryId}>
+                        {subcategory.name}
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => {
+                      if (!formData.category) {
+                        alert("Please select a category first");
+                      } else {
+                        setShowNewSubcategoryDialog(true);
+                      }
+                    }}
+                    disabled={!formData.category}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Pricing & Inventory */}
+          <div className="bg-white rounded-lg border p-6">
+            <h2 className="text-lg font-semibold mb-4">Pricing & Inventory</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="salePrice" className="text-sm font-medium">
+                  Sale Price ($) *
+                </Label>
+                <Input
+                  id="salePrice"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.salePrice}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      salePrice: e.target.value,
+                      price: e.target.value,
+                    })
+                  }
+                  required
+                  className="mt-1.5"
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="costPrice" className="text-sm font-medium">
+                  Cost Price ($)
+                </Label>
+                <Input
+                  id="costPrice"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.costPrice}
+                  onChange={(e) =>
+                    setFormData({ ...formData, costPrice: e.target.value })
+                  }
+                  className="mt-1.5"
+                  placeholder="0.00"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Only visible to admin and managers
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="discount" className="text-sm font-medium">
+                  Discount (%)
+                  {formData.status === "Discount" && (
+                    <span className="text-red-500 ml-1">*</span>
+                  )}
+                </Label>
+                <Input
+                  id="discount"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  value={formData.discount}
+                  onChange={(e) =>
+                    setFormData({ ...formData, discount: e.target.value })
+                  }
+                  className="mt-1.5"
+                  placeholder="0"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="unit" className="text-sm font-medium">
+                  Unit *
+                </Label>
+                <select
+                  id="unit"
+                  value={formData.unit}
+                  onChange={(e) =>
+                    setFormData({ ...formData, unit: e.target.value })
+                  }
+                  required
+                  className="mt-1.5 w-full h-10 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                  <option value="pcs">Pieces (pcs)</option>
+                  <option value="box">Box</option>
+                  <option value="kg">Kilogram (kg)</option>
+                  <option value="liter">Liter</option>
+                  <option value="meter">Meter</option>
+                  <option value="pack">Pack</option>
+                  <option value="unit">Unit</option>
+                </select>
+              </div>
+
+              <div>
+                <Label htmlFor="status" className="text-sm font-medium">
+                  Status *
+                </Label>
+                <select
+                  id="status"
+                  value={formData.status}
+                  onChange={(e) =>
+                    setFormData({ ...formData, status: e.target.value })
+                  }
+                  required
+                  className="mt-1.5 w-full h-10 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                  <option value="Discount">Discount</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Stock & Location */}
+          <div className="bg-white rounded-lg border p-6">
+            <h2 className="text-lg font-semibold mb-4">Stock & Location</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="stock" className="text-sm font-medium">
+                  Stock Quantity *
+                </Label>
+                <Input
+                  id="stock"
+                  type="number"
+                  min="0"
+                  value={formData.stock}
+                  onChange={(e) =>
+                    setFormData({ ...formData, stock: e.target.value })
+                  }
+                  required
+                  className="mt-1.5"
+                  placeholder="0"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="minStock" className="text-sm font-medium">
+                  Reorder Level *
+                </Label>
+                <Input
+                  id="minStock"
+                  type="number"
+                  min="0"
+                  value={formData.minStock}
+                  onChange={(e) =>
+                    setFormData({ ...formData, minStock: e.target.value })
+                  }
+                  required
+                  className="mt-1.5"
+                  placeholder="0"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <Label htmlFor="location" className="text-sm font-medium">
+                  Storage Location *
+                </Label>
+                <Input
+                  id="location"
+                  value={formData.location}
+                  onChange={(e) =>
+                    setFormData({ ...formData, location: e.target.value })
+                  }
+                  required
+                  className="mt-1.5"
+                  placeholder="e.g., Warehouse A, Shelf 12"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Supplier */}
+          <div className="bg-white rounded-lg border p-6">
+            <h2 className="text-lg font-semibold mb-4">Supplier Information</h2>
+            <div>
+              <Label htmlFor="source" className="text-sm font-medium">
+                Source/Supplier
+              </Label>
+              <div className="flex gap-2 mt-1.5">
+                <select
+                  id="source"
+                  value={formData.sourceId}
+                  onChange={(e) =>
+                    setFormData({ ...formData, sourceId: e.target.value })
+                  }
+                  disabled={isLoadingSources}
+                  className="flex-1 h-10 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                  <option value="">Select supplier (optional)</option>
+                  {sources.map((source) => (
+                    <option key={source.sourceId} value={source.sourceId}>
+                      {source.name}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setShowNewSupplierDialog(true)}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </form>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="unit">Unit</Label>
-          <select
-            id="unit"
-            value={formData.unit}
-            onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-            required
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
-            <option value="pcs">Pieces (pcs)</option>
-            <option value="box">Box</option>
-            <option value="kg">Kilogram (kg)</option>
-            <option value="liter">Liter</option>
-            <option value="meter">Meter</option>
-            <option value="pack">Pack</option>
-            <option value="unit">Unit</option>
-          </select>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="status">Status</Label>
-          <select
-            id="status"
-            value={formData.status}
-            onChange={(e) =>
-              setFormData({ ...formData, status: e.target.value })
-            }
-            required
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-            <option value="Discount">Discount</option>
-          </select>
-        </div>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="salePrice">Sale Price ($)</Label>
-          <Input
-            id="salePrice"
-            type="number"
-            step="0.01"
-            min="0"
-            value={formData.salePrice}
-            onChange={(e) =>
-              setFormData({
-                ...formData,
-                salePrice: e.target.value,
-                price: e.target.value,
-              })
-            }
-            required
-            placeholder="Price customers will pay"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="costPrice">Cost Price ($)</Label>
-          <Input
-            id="costPrice"
-            type="number"
-            step="0.01"
-            min="0"
-            value={formData.costPrice}
-            onChange={(e) =>
-              setFormData({ ...formData, costPrice: e.target.value })
-            }
-            placeholder="Optional: Original price from supplier"
-          />
-          <p className="text-xs text-muted-foreground">
-            Only visible to admin and managers
-          </p>
-        </div>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="discount">
-            Discount (%)
-            {formData.status === "Discount" && (
-              <span className="text-red-500 ml-1">*</span>
-            )}
-          </Label>
-          <Input
-            id="discount"
-            type="number"
-            step="0.01"
-            min="0"
-            max="100"
-            value={formData.discount}
-            onChange={(e) =>
-              setFormData({ ...formData, discount: e.target.value })
-            }
-            required
-          />
-          {formData.status === "Discount" && (
-            <p className="text-xs text-red-500">
-              Discount amount is required for Discount status
-            </p>
-          )}
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="source">Source/Supplier</Label>
-        <div className="flex gap-2">
-          <select
-            id="source"
-            value={formData.sourceId}
-            onChange={(e) =>
-              setFormData({ ...formData, sourceId: e.target.value })
-            }
-            disabled={isLoadingSources}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
-            <option value="">Select supplier (optional)</option>
-            {sources.map((source) => (
-              <option key={source.sourceId} value={source.sourceId}>
-                {source.name}
-              </option>
-            ))}
-          </select>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={() => setShowNewSupplierDialog(true)}
-            title="Add new supplier">
-            <Plus className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="stock">Stock Quantity</Label>
-          <Input
-            id="stock"
-            type="number"
-            min="0"
-            value={formData.stock}
-            onChange={(e) =>
-              setFormData({ ...formData, stock: e.target.value })
-            }
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="minStock">Reorder Level (Low Stock Alert)</Label>
-          <Input
-            id="minStock"
-            type="number"
-            min="0"
-            value={formData.minStock}
-            onChange={(e) =>
-              setFormData({ ...formData, minStock: e.target.value })
-            }
-            required
-          />
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="location">Storage Location</Label>
-        <Input
-          id="location"
-          value={formData.location}
-          onChange={(e) =>
-            setFormData({ ...formData, location: e.target.value })
-          }
-          required
-          placeholder="e.g., Warehouse A, Shelf 12"
-        />
-      </div>
-
-      <div className="flex justify-between gap-2">
-        {item && onDelete && (
-          <Button
-            type="button"
-            variant="destructive"
-            onClick={onDelete}
-            disabled={isUploading}>
-            Delete Item
-          </Button>
-        )}
-        <div className="flex gap-2 ml-auto">
-          <Button type="button" variant="outline" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            className="bg-blue-600 hover:bg-blue-700"
-            disabled={isUploading}>
-            {isUploading ? "Uploading..." : item ? "Update Item" : "Add Item"}
-          </Button>
-        </div>
-      </div>
-
-      {/* New Supplier Dialog */}
+      {/* Dialogs remain the same */}
       <Dialog
         open={showNewSupplierDialog}
         onOpenChange={setShowNewSupplierDialog}>
@@ -850,7 +956,6 @@ export function InventoryForm({
         </DialogContent>
       </Dialog>
 
-      {/* New Category Dialog */}
       <Dialog
         open={showNewCategoryDialog}
         onOpenChange={setShowNewCategoryDialog}>
@@ -896,7 +1001,6 @@ export function InventoryForm({
         </DialogContent>
       </Dialog>
 
-      {/* New Subcategory Dialog */}
       <Dialog
         open={showNewSubcategoryDialog}
         onOpenChange={setShowNewSubcategoryDialog}>
@@ -945,6 +1049,6 @@ export function InventoryForm({
           </div>
         </DialogContent>
       </Dialog>
-    </form>
+    </div>
   );
 }

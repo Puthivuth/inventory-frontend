@@ -1,4 +1,10 @@
-import { InventoryItem, Supplier, PurchaseOrder, Invoice } from "@/types";
+import {
+  InventoryItem,
+  InventoryFormData,
+  Supplier,
+  PurchaseOrder,
+  Invoice,
+} from "@/types";
 
 // API Response Types
 interface ApiInventoryItem {
@@ -83,7 +89,8 @@ function getHeaders() {
 }
 
 async function fetchAPI(endpoint: string, options: RequestInit = {}) {
-  const res = await fetch(buildApiUrl(endpoint), {
+  const url = buildApiUrl(endpoint);
+  const res = await fetch(url, {
     ...options,
     headers: {
       ...getHeaders(),
@@ -92,17 +99,6 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}) {
   });
 
   if (!res.ok) {
-    console.error("[API] Request failed:", {
-      url: res.url,
-      status: res.status,
-      statusText: res.statusText,
-      // Attempt to get more detail here
-      errorBody: await res
-        .clone()
-        .text()
-        .catch(() => "N/A"),
-    });
-
     // Handle Authentication failure specifically
     if (res.status === 401) {
       if (typeof window !== "undefined") {
@@ -114,8 +110,10 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}) {
     }
 
     let errorMessage = res.statusText;
+    let errorBody = "N/A";
+
     try {
-      const errorBody = await res.text();
+      errorBody = await res.text();
       console.error("[API] Error response body:", errorBody);
 
       const error = JSON.parse(errorBody);
@@ -139,9 +137,17 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}) {
       // If errorBody is not valid JSON, use generic message
       console.error(
         "[API] Failed to parse error response as JSON, using statusText:",
-        e
+        e,
       );
     }
+
+    console.error("[API] Request failed:", {
+      url: url,
+      method: options.method || "GET",
+      status: res.status,
+      statusText: res.statusText,
+      errorBody: errorBody,
+    });
 
     throw new Error(errorMessage);
   }
@@ -174,16 +180,16 @@ export async function getInventoryItems(): Promise<InventoryItem[]> {
     ]);
 
     const products = new Map<number, ApiProduct>(
-      productsRes.map((p) => [p.productId, p])
+      productsRes.map((p) => [p.productId, p]),
     );
     const subcategories = new Map<number, ApiSubCategory>(
-      subcategoriesRes.map((s) => [s.subcategoryId, s])
+      subcategoriesRes.map((s) => [s.subcategoryId, s]),
     );
     const categories = new Map<number, ApiCategory>(
-      categoriesRes.map((c) => [c.categoryId, c])
+      categoriesRes.map((c) => [c.categoryId, c]),
     );
     const sources = new Map<number, ApiSource>(
-      sourcesRes.map((s) => [s.sourceId, s])
+      sourcesRes.map((s) => [s.sourceId, s]),
     );
 
     const items = inventoryRes.map((item) => {
@@ -232,7 +238,7 @@ export async function getInventoryItems(): Promise<InventoryItem[]> {
     // Sort by createdAt descending (newest first)
     return items.sort(
       (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
   } catch (error) {
     console.error("Error fetching inventory items:", error);
@@ -240,8 +246,82 @@ export async function getInventoryItems(): Promise<InventoryItem[]> {
   }
 }
 
+export async function getInventoryById(
+  id: string,
+): Promise<InventoryItem | null> {
+  try {
+    const inventory = (await fetchAPI(`/inventory/${id}/`)) as ApiInventoryItem;
+
+    const product = (await fetchAPI(
+      `/products/${inventory.product}/`,
+    )) as ApiProduct;
+    const subcategory = (await fetchAPI(
+      `/subcategories/${product.subcategory}/`,
+    )) as ApiSubCategory;
+    const category = (await fetchAPI(
+      `/categories/${subcategory.category}/`,
+    )) as ApiCategory;
+    const source = product.source
+      ? ((await fetchAPI(`/sources/${product.source}/`)) as ApiSource)
+      : null;
+
+    return {
+      id: inventory.inventoryId.toString(),
+      productId: product.productId.toString(),
+      name: product.productName,
+      description: product.description,
+      sku: product.skuCode,
+      category: category.name,
+      categoryId: category.categoryId.toString(),
+      subcategory: subcategory.name,
+      subcategoryId: product.subcategory.toString(),
+      unit: product.unit || "pcs",
+      source: source?.name || "",
+      sourceId: source?.sourceId?.toString() || "",
+      status: product.status || "Active",
+      costPrice: product.costPrice ? parseFloat(product.costPrice) : undefined,
+      salePrice: product.salePrice ? parseFloat(product.salePrice) : 0,
+      price: product.salePrice ? parseFloat(product.salePrice) : 0,
+      discount: product.discount ? parseFloat(product.discount) : 0,
+      stock: inventory.quantity,
+      minStock: inventory.reorderLevel,
+      location: inventory.location,
+      imageUrl: product.image || "",
+      userId: "",
+      createdAt: product.createdAt || new Date().toISOString(),
+      updatedAt: inventory.updatedAt,
+    };
+  } catch (error) {
+    console.error("Error fetching inventory item:", error);
+    return null;
+  }
+}
+
+export async function getSoldQuantities(): Promise<Map<number, number>> {
+  try {
+    const purchases = (await fetchAPI("/purchases/")) as Array<{
+      product: number;
+      quantity: number;
+    }>;
+
+    const soldMap = new Map<number, number>();
+
+    purchases.forEach((purchase) => {
+      if (purchase.product) {
+        const current = soldMap.get(purchase.product) || 0;
+        soldMap.set(purchase.product, current + purchase.quantity);
+      }
+    });
+
+    return soldMap;
+  } catch (error) {
+    console.error("Error fetching sold quantities:", error);
+    return new Map();
+  }
+}
+
 export async function addInventoryItem(
-  item: Omit<InventoryItem, "id" | "createdAt" | "updatedAt" | "userId">
+  item: InventoryFormData,
 ): Promise<InventoryItem | null> {
   try {
     // item.category is now categoryId and item.subcategory is subcategoryId
@@ -311,9 +391,7 @@ export async function addInventoryItem(
 
 export async function updateInventoryItem(
   id: string,
-  updates: Partial<
-    Omit<InventoryItem, "id" | "createdAt" | "updatedAt" | "userId">
-  >
+  updates: Partial<InventoryFormData>,
 ): Promise<InventoryItem | null> {
   try {
     // Fetch current inventory to get product ID
@@ -401,13 +479,13 @@ export async function updateInventoryItem(
 
     // Fetch updated product details
     const updatedProduct = (await fetchAPI(
-      `/products/${productId}/`
+      `/products/${productId}/`,
     )) as ApiProduct;
     const subcategories = (await fetchAPI(
-      "/subcategories/"
+      "/subcategories/",
     )) as ApiSubCategory[];
     const subcategory = subcategories.find(
-      (s) => s.subcategoryId === updatedProduct.subcategory
+      (s) => s.subcategoryId === updatedProduct.subcategory,
     );
 
     return {
@@ -505,41 +583,45 @@ export async function getInvoices(): Promise<any[]> {
     // Invoices from the backend already contain their related purchases
     const invoicesRes = (await fetchAPI("/invoices/")) as any[];
 
-    const mappedInvoices = invoicesRes.map((invoice: any) => {
-      // The backend serializes related purchases under the 'purchases' key
-      const items = invoice.purchases || [];
+    const mappedInvoices = invoicesRes
+      .filter((invoice: any) => invoice.invoiceId) // Filter out invoices without ID
+      .map((invoice: any) => {
+        // The backend serializes related purchases under the 'purchases' key
+        const items = (invoice.purchases || []).filter(
+          (item: any) => item.purchaseId,
+        ); // Filter out items without ID
 
-      return {
-        id: invoice.invoiceId.toString(),
-        invoiceId: invoice.invoiceId,
-        invoiceNumber: `INV-${invoice.invoiceId}`,
-        customerName: invoice.customerName || "Guest",
-        customerEmail: invoice.customerEmail || "",
-        customerPhone: invoice.customerPhone || "",
-        status: invoice.status.toLowerCase(),
-        paymentMethod: invoice.paymentMethod || "Cash",
-        subtotal: parseFloat(invoice.totalBeforeDiscount),
-        tax: parseFloat(invoice.tax),
-        total: parseFloat(invoice.grandTotal),
-        discount: parseFloat(invoice.discount || 0),
-        notes: invoice.note,
-        items: items.map((item: any) => ({
-          id: item.purchaseId.toString(),
-          inventoryItemId: item.product.toString(),
-          name: item.productName || "Unknown", // productName is from PurchaseReadSerializer
-          sku: "", // Not essential for this view
-          quantity: item.quantity,
-          price: parseFloat(item.pricePerUnit),
-          discount: parseFloat(item.discount),
-          total: parseFloat(item.subtotal),
-        })),
-        createdAt: invoice.createdAt,
-        updatedAt: invoice.createdAt, // Invoice doesn't have updatedAt in this model
-        createdByUsername: invoice.createdByUsername,
-        paidAt: invoice.paidAt,
-        khqrMd5: invoice.khqrMd5,
-      };
-    });
+        return {
+          id: invoice.invoiceId?.toString() || "unknown",
+          invoiceId: invoice.invoiceId,
+          invoiceNumber: `INV-${invoice.invoiceId}`,
+          customerName: invoice.customerName || "Guest",
+          customerEmail: invoice.customerEmail || "",
+          customerPhone: invoice.customerPhone || "",
+          status: (invoice.status || "pending").toLowerCase(),
+          paymentMethod: invoice.paymentMethod || "Cash",
+          subtotal: parseFloat(invoice.totalBeforeDiscount || "0"),
+          tax: parseFloat(invoice.tax || "0"),
+          total: parseFloat(invoice.grandTotal || "0"),
+          discount: parseFloat(invoice.discount || "0"),
+          notes: invoice.note,
+          items: items.map((item: any) => ({
+            id: item.purchaseId?.toString() || "unknown",
+            inventoryItemId: item.product?.toString() || "unknown",
+            name: item.productName || "Unknown",
+            sku: "",
+            quantity: item.quantity || 0,
+            price: parseFloat(item.pricePerUnit || "0"),
+            discount: parseFloat(item.discount || "0"),
+            total: parseFloat(item.subtotal || "0"),
+          })),
+          createdAt: invoice.createdAt,
+          updatedAt: invoice.createdAt, // Invoice doesn't have updatedAt in this model
+          createdByUsername: invoice.createdByUsername,
+          paidAt: invoice.paidAt,
+          khqrMd5: invoice.khqrMd5,
+        };
+      });
 
     return mappedInvoices;
   } catch (error) {
@@ -586,10 +668,10 @@ export async function addInvoice(invoice: any): Promise<any | null> {
       invoice.items.map(async (item: any) => {
         try {
           const inventory = await fetchAPI(
-            `/inventory/${item.inventoryItemId}/`
+            `/inventory/${item.inventoryItemId}/`,
           );
           console.log(
-            `[Invoice] Inventory ${item.inventoryItemId} -> Product ${inventory.product}`
+            `[Invoice] Inventory ${item.inventoryItemId} -> Product ${inventory.product}`,
           );
           return {
             product: inventory.product,
@@ -600,11 +682,11 @@ export async function addInvoice(invoice: any): Promise<any | null> {
         } catch (error) {
           console.error(
             `[Invoice] Failed to fetch inventory ${item.inventoryItemId}:`,
-            error
+            error,
           );
           throw new Error(`Could not find inventory item: ${item.name}`);
         }
-      })
+      }),
     );
 
     console.log("[Invoice] Line items prepared:", lineItems);
@@ -617,8 +699,8 @@ export async function addInvoice(invoice: any): Promise<any | null> {
         invoice.status === "paid"
           ? "Paid"
           : invoice.status === "pending"
-          ? "Pending"
-          : "Draft",
+            ? "Pending"
+            : "Draft",
       note: invoice.notes || "",
       lineItems: lineItems,
       taxPercentage:
@@ -633,7 +715,7 @@ export async function addInvoice(invoice: any): Promise<any | null> {
 
     console.log(
       "[Invoice] Sending payload to backend:",
-      JSON.stringify(invoicePayload, null, 2)
+      JSON.stringify(invoicePayload, null, 2),
     );
 
     const newInvoice = await fetchAPI("/invoices/", {
@@ -661,7 +743,7 @@ export async function addInvoice(invoice: any): Promise<any | null> {
 
 export async function updateInvoice(
   id: string,
-  updates: any
+  updates: any,
 ): Promise<any | null> {
   try {
     const updateData: any = {};
@@ -719,7 +801,7 @@ export async function getSuppliers(): Promise<Supplier[]> {
     // Sort by createdAt descending (newest first)
     return suppliers.sort(
       (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
   } catch (error) {
     console.error("Error fetching suppliers:", error);
@@ -728,7 +810,7 @@ export async function getSuppliers(): Promise<Supplier[]> {
 }
 
 export async function addSupplier(
-  supplier: Omit<Supplier, "id" | "createdAt" | "updatedAt" | "userId">
+  supplier: Omit<Supplier, "id" | "createdAt" | "updatedAt" | "userId">,
 ): Promise<Supplier | null> {
   try {
     const newSource = await fetchAPI("/sources/", {
@@ -760,7 +842,7 @@ export async function addSupplier(
 
 export async function updateSupplier(
   id: string,
-  updates: Partial<Omit<Supplier, "id" | "createdAt" | "updatedAt" | "userId">>
+  updates: Partial<Omit<Supplier, "id" | "createdAt" | "updatedAt" | "userId">>,
 ): Promise<Supplier | null> {
   try {
     const updateData: any = {};
@@ -810,11 +892,11 @@ export async function getPurchaseOrders(): Promise<PurchaseOrder[]> {
     const newStocks = await fetchAPI("/newstock/");
     const productsRes = await fetchAPI("/products/");
     const products = new Map<any, any>(
-      productsRes.map((p: any) => [p.productId, p])
+      productsRes.map((p: any) => [p.productId, p]),
     );
     const suppliersRes = await fetchAPI("/sources/");
     const suppliers = new Map<any, any>(
-      suppliersRes.map((s: any) => [s.sourceId, s])
+      suppliersRes.map((s: any) => [s.sourceId, s]),
     );
 
     const orders: PurchaseOrder[] = newStocks.map((stock: any) => {
@@ -846,7 +928,7 @@ export async function getPurchaseOrders(): Promise<PurchaseOrder[]> {
     // Sort by createdAt descending (newest first)
     return orders.sort(
       (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
   } catch (error) {
     console.error("Error fetching purchase orders:", error);
@@ -858,7 +940,7 @@ export async function addPurchaseOrder(
   po: Omit<
     PurchaseOrder,
     "id" | "poNumber" | "createdAt" | "updatedAt" | "userId"
-  >
+  >,
 ): Promise<PurchaseOrder | null> {
   try {
     // We need to create NewStock entries for each item
@@ -901,7 +983,7 @@ export async function updatePurchaseOrder(
       PurchaseOrder,
       "id" | "poNumber" | "createdAt" | "updatedAt" | "userId"
     >
-  >
+  >,
 ): Promise<PurchaseOrder | null> {
   console.warn("Update PO not fully supported via NewStock API");
   return null;
@@ -941,7 +1023,7 @@ export async function login(username: string, password: string): Promise<any> {
           id: data.user_id,
           username: data.username,
           role: data.role,
-        })
+        }),
       );
     }
     return data;
@@ -961,7 +1043,7 @@ export async function logout() {
 export async function register(
   username: string,
   password: string,
-  email: string
+  email: string,
 ) {
   const res = await fetch(buildApiUrl("/register/"), {
     method: "POST",
@@ -1012,7 +1094,7 @@ export async function getActivityLogs(): Promise<any[]> {
     const logs = (await fetchAPI("/activitylogs/")) as any[];
     return logs.sort(
       (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
   } catch (error) {
     console.error("Error fetching activity logs:", error);
@@ -1035,7 +1117,7 @@ export async function checkInvoicePayment(invoiceId: number): Promise<any> {
 }
 
 export async function getProductAssociations(
-  productId: string
+  productId: string,
 ): Promise<any[]> {
   try {
     const response = await fetchAPI(`/products/${productId}/associations/`);

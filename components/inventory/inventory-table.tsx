@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import type { InventoryItem } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,10 +14,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, X } from "lucide-react";
-import { InventoryDialog } from "./inventory-dialog";
+import { Search, Filter, X, Plus } from "lucide-react";
 
-import { deleteInventoryItem } from "@/lib/api";
+import { deleteInventoryItem, getSoldQuantities } from "@/lib/api";
 import { canWrite, isManagerOrAdmin } from "@/lib/permissions";
 import Image from "next/image";
 
@@ -26,12 +26,28 @@ interface InventoryTableProps {
 }
 
 export function InventoryTable({ items, onUpdate }: InventoryTableProps) {
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
-  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [stockFilter, setStockFilter] = useState<string>("all");
+  const [soldQuantities, setSoldQuantities] = useState<Map<number, number>>(
+    new Map(),
+  );
+
+  // Fetch sold quantities on mount and when items update
+  useEffect(() => {
+    const fetchSoldQuantities = async () => {
+      try {
+        const sold = await getSoldQuantities();
+        setSoldQuantities(sold);
+      } catch (error) {
+        console.error("Error loading sold quantities:", error);
+      }
+    };
+
+    fetchSoldQuantities();
+  }, [items]);
 
   // Get unique categories from items
   const categories = useMemo(() => {
@@ -83,13 +99,7 @@ export function InventoryTable({ items, onUpdate }: InventoryTableProps) {
   };
 
   const handleEdit = (item: InventoryItem) => {
-    setEditingItem(item);
-    setIsDialogOpen(true);
-  };
-
-  const handleDialogClose = () => {
-    setIsDialogOpen(false);
-    setEditingItem(null);
+    router.push(`/inventory/${item.id}/edit`);
   };
 
   return (
@@ -107,18 +117,12 @@ export function InventoryTable({ items, onUpdate }: InventoryTableProps) {
             />
           </div>
           {canWrite() && (
-            <InventoryDialog
-              item={editingItem}
-              open={isDialogOpen}
-              onOpenChange={(open) => {
-                setIsDialogOpen(open);
-                if (!open) setEditingItem(null);
-              }}
-              onSuccess={() => {
-                onUpdate();
-                handleDialogClose();
-              }}
-            />
+            <Button
+              onClick={() => router.push("/inventory/add")}
+              className="bg-blue-600 hover:bg-blue-700 whitespace-nowrap">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Product
+            </Button>
           )}
         </div>
 
@@ -203,6 +207,9 @@ export function InventoryTable({ items, onUpdate }: InventoryTableProps) {
                 Price
               </TableHead>
               <TableHead className="text-right text-xs sm:text-sm min-w-[80px]">
+                Discount
+              </TableHead>
+              <TableHead className="text-right text-xs sm:text-sm min-w-[80px]">
                 Stock
               </TableHead>
               <TableHead className="text-right text-xs sm:text-sm min-w-[80px]">
@@ -220,7 +227,7 @@ export function InventoryTable({ items, onUpdate }: InventoryTableProps) {
             {filteredItems.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={9}
+                  colSpan={10}
                   className="text-center text-muted-foreground">
                   No items found
                 </TableCell>
@@ -248,9 +255,11 @@ export function InventoryTable({ items, onUpdate }: InventoryTableProps) {
                   </TableCell>
                   <TableCell className="py-2">
                     <div
-                      className="cursor-pointer"
-                      onClick={() => handleEdit(item)}>
-                      <div className="font-medium text-base">{item.name}</div>
+                      className="cursor-pointer hover:underline"
+                      onClick={() => router.push(`/inventory/${item.id}`)}>
+                      <div className="font-medium text-base text-blue-600">
+                        {item.name}
+                      </div>
                       <div className="text-sm text-muted-foreground">
                         {item.description}
                       </div>
@@ -272,6 +281,17 @@ export function InventoryTable({ items, onUpdate }: InventoryTableProps) {
                     ${item.salePrice.toFixed(2)}
                   </TableCell>
                   <TableCell className="text-right py-2">
+                    {item.discount && item.discount > 0 ? (
+                      <Badge
+                        variant="secondary"
+                        className="text-sm px-3 py-1 bg-orange-100 text-orange-900">
+                        {item.discount.toFixed(2)}%
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right py-2">
                     <Badge
                       variant={
                         item.stock <= item.minStock ? "destructive" : "default"
@@ -281,7 +301,20 @@ export function InventoryTable({ items, onUpdate }: InventoryTableProps) {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right py-2">
-                    <span className="text-muted-foreground">0</span>
+                    {(() => {
+                      const sold =
+                        soldQuantities.get(parseInt(item.productId)) || 0;
+                      const hasSales = sold > 0;
+                      return (
+                        <Badge
+                          variant={hasSales ? "default" : "secondary"}
+                          className={`text-sm px-3 py-1 ${
+                            hasSales ? "bg-green-600" : "bg-gray-400"
+                          }`}>
+                          {sold}
+                        </Badge>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell className="text-right py-2">
                     <Badge

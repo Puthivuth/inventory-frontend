@@ -32,7 +32,7 @@ export const calculateSalesData = async (): Promise<SalesData[]> => {
   });
 
   return Array.from(salesMap.values()).sort(
-    (a, b) => b.totalRevenue - a.totalRevenue
+    (a, b) => b.totalRevenue - a.totalRevenue,
   );
 };
 
@@ -48,7 +48,7 @@ export const calculateRevenueByDate = async (): Promise<
 > => {
   const invoices = await getInvoices();
   const paidInvoices = invoices.filter(
-    (inv) => inv.status?.toLowerCase() === "paid"
+    (inv) => inv.status?.toLowerCase() === "paid",
   );
   const revenueMap = new Map<string, { revenue: number; invoices: number }>();
 
@@ -72,23 +72,22 @@ export const calculateTotalStats = async () => {
   const invoices = await getInvoices();
   const items = await getInventoryItems();
 
-  const totalRevenue = invoices
-    .filter((inv) => inv.status?.toLowerCase() === "paid")
-    .reduce((sum, inv) => sum + inv.total, 0);
-
-  const totalInvoices = invoices.filter(
-    (inv) => inv.status?.toLowerCase() === "paid"
-  ).length;
   const totalProducts = items.length;
+  const totalStock = items.reduce((sum, item) => sum + item.stock, 0);
   const lowStockCount = items.filter(
-    (item) => item.stock <= item.minStock
+    (item) => item.stock <= item.minStock,
   ).length;
+  const outOfStockCount = items.filter((item) => item.stock === 0).length;
+  const inventoryValue = items.reduce((sum, item) => {
+    return sum + item.salePrice * item.stock;
+  }, 0);
 
   return {
-    totalRevenue,
-    totalInvoices,
     totalProducts,
+    totalStock,
     lowStockCount,
+    outOfStockCount,
+    inventoryValue,
   };
 };
 
@@ -108,7 +107,7 @@ export const calculateRestockPredictions = async () => {
   const newestDate = Math.max(...dates);
   const daysCovered = Math.max(
     1,
-    Math.ceil((newestDate - oldestDate) / (1000 * 60 * 60 * 24))
+    Math.ceil((newestDate - oldestDate) / (1000 * 60 * 60 * 24)),
   );
 
   // Calculate total sold per product
@@ -180,7 +179,7 @@ export const calculateSupplierAnalytics = async () => {
 
   // 4. Process paid invoices
   const paidInvoices = invoices.filter(
-    (inv) => inv.status?.toLowerCase() === "paid"
+    (inv) => inv.status?.toLowerCase() === "paid",
   );
   paidInvoices.forEach((invoice) => {
     invoice.items.forEach((lineItem: any) => {
@@ -247,7 +246,7 @@ export const calculateProfitAnalytics = async () => {
     .forEach((invoice) => {
       invoice.items.forEach((invoiceItem: any) => {
         const inventoryItem = items.find(
-          (item) => item.productId === invoiceItem.inventoryItemId
+          (item) => item.productId === invoiceItem.inventoryItemId,
         );
         if (!inventoryItem) return;
 

@@ -15,6 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Search, Filter, X } from "lucide-react";
 import { InventoryDialog } from "./inventory-dialog";
+import { ImageSearchDialog } from "./image-search";
 
 import { deleteInventoryItem } from "@/lib/api";
 import { canWrite, isManagerOrAdmin } from "@/lib/permissions";
@@ -107,18 +108,21 @@ export function InventoryTable({ items, onUpdate }: InventoryTableProps) {
             />
           </div>
           {canWrite() && (
-            <InventoryDialog
-              item={editingItem}
-              open={isDialogOpen}
-              onOpenChange={(open) => {
-                setIsDialogOpen(open);
-                if (!open) setEditingItem(null);
-              }}
-              onSuccess={() => {
-                onUpdate();
-                handleDialogClose();
-              }}
-            />
+            <div className="flex gap-2">
+              <ImageSearchDialog />
+              <InventoryDialog
+                item={editingItem}
+                open={isDialogOpen}
+                onOpenChange={(open) => {
+                  setIsDialogOpen(open);
+                  if (!open) setEditingItem(null);
+                }}
+                onSuccess={() => {
+                  onUpdate();
+                  handleDialogClose();
+                }}
+              />
+            </div>
           )}
         </div>
 

@@ -75,6 +75,8 @@ export interface Supplier {
   email?: string;
   phone?: string;
   address?: string;
+  district?: string;
+  subcategories?: string[]; // Sub-categories of products this supplier supplies
   notes?: string;
   lastTransactionDate?: string;
   createdAt: string;

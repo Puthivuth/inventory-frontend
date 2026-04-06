@@ -14,11 +14,20 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, X, Plus } from "lucide-react";
+import { Search, Filter, X, Plus, ChevronDown } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 import { deleteInventoryItem, getSoldQuantities } from "@/lib/api";
 import { canWrite, isManagerOrAdmin } from "@/lib/permissions";
 import Image from "next/image";
+import { AddStockDialog } from "./add-stock-dialog";
 
 interface InventoryTableProps {
   items: InventoryItem[];
@@ -127,63 +136,232 @@ export function InventoryTable({ items, onUpdate }: InventoryTableProps) {
         </div>
 
         {/* Filters Row */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Filter className="h-4 w-4" />
-            <span className="font-medium">Filters:</span>
+        <div className="space-y-3">
+          {/* Filter Header */}
+          <div className="flex items-center gap-2 text-sm">
+            <Filter className="h-4 w-4 text-blue-600" />
+            <span className="font-semibold text-foreground">Filters</span>
+            {hasActiveFilters && (
+              <Badge variant="secondary" className="ml-auto">
+                {(selectedCategory !== "all" ? 1 : 0) +
+                  (selectedStatus !== "all" ? 1 : 0) +
+                  (stockFilter !== "all" ? 1 : 0)}{" "}
+                active
+              </Badge>
+            )}
           </div>
 
-          {/* Category Filter */}
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-            <option value="all">All Categories</option>
-            {categories.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
+          {/* Filter Controls */}
+          <div className="flex flex-wrap gap-2">
+            {/* Category Filter */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={`h-9 gap-2 ${
+                    selectedCategory !== "all"
+                      ? "bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100"
+                      : ""
+                  }`}>
+                  <span className="text-xs font-medium">Category</span>
+                  {selectedCategory !== "all" && (
+                    <Badge variant="secondary" className="px-1.5 py-0 text-xs">
+                      {selectedCategory}
+                    </Badge>
+                  )}
+                  <ChevronDown className="h-3.5 w-3.5 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48">
+                <DropdownMenuLabel>Select Category</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setSelectedCategory("all")}
+                  className={selectedCategory === "all" ? "bg-blue-50" : ""}>
+                  All Categories
+                  {selectedCategory === "all" && (
+                    <span className="ml-auto">✓</span>
+                  )}
+                </DropdownMenuItem>
+                {categories.map((category) => (
+                  <DropdownMenuItem
+                    key={category}
+                    onClick={() => setSelectedCategory(category)}
+                    className={
+                      selectedCategory === category ? "bg-blue-50" : ""
+                    }>
+                    {category}
+                    {selectedCategory === category && (
+                      <span className="ml-auto">✓</span>
+                    )}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-          {/* Status Filter */}
-          <select
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-            <option value="all">All Status</option>
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-            <option value="Discount">Discount</option>
-          </select>
+            {/* Status Filter */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={`h-9 gap-2 ${
+                    selectedStatus !== "all"
+                      ? "bg-green-50 border-green-300 text-green-700 hover:bg-green-100"
+                      : ""
+                  }`}>
+                  <span className="text-xs font-medium">Status</span>
+                  {selectedStatus !== "all" && (
+                    <Badge variant="secondary" className="px-1.5 py-0 text-xs">
+                      {selectedStatus}
+                    </Badge>
+                  )}
+                  <ChevronDown className="h-3.5 w-3.5 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-40">
+                <DropdownMenuLabel>Select Status</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setSelectedStatus("all")}
+                  className={selectedStatus === "all" ? "bg-green-50" : ""}>
+                  All Status
+                  {selectedStatus === "all" && (
+                    <span className="ml-auto">✓</span>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setSelectedStatus("Active")}
+                  className={selectedStatus === "Active" ? "bg-green-50" : ""}>
+                  <Badge
+                    variant="outline"
+                    className="mr-2 h-5 rounded-full border-green-200 bg-green-50 text-green-700">
+                    Active
+                  </Badge>
+                  {selectedStatus === "Active" && (
+                    <span className="ml-auto">✓</span>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setSelectedStatus("Inactive")}
+                  className={
+                    selectedStatus === "Inactive" ? "bg-green-50" : ""
+                  }>
+                  <Badge
+                    variant="outline"
+                    className="mr-2 h-5 rounded-full border-gray-200 bg-gray-50 text-gray-700">
+                    Inactive
+                  </Badge>
+                  {selectedStatus === "Inactive" && (
+                    <span className="ml-auto">✓</span>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setSelectedStatus("Discount")}
+                  className={
+                    selectedStatus === "Discount" ? "bg-green-50" : ""
+                  }>
+                  <Badge
+                    variant="outline"
+                    className="mr-2 h-5 rounded-full border-orange-200 bg-orange-50 text-orange-700">
+                    Discount
+                  </Badge>
+                  {selectedStatus === "Discount" && (
+                    <span className="ml-auto">✓</span>
+                  )}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-          {/* Stock Level Filter */}
-          <select
-            value={stockFilter}
-            onChange={(e) => setStockFilter(e.target.value)}
-            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-            <option value="all">All Stock Levels</option>
-            <option value="in-stock">In Stock</option>
-            <option value="low">Low Stock</option>
-            <option value="out">Out of Stock</option>
-          </select>
+            {/* Stock Level Filter */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={`h-9 gap-2 ${
+                    stockFilter !== "all"
+                      ? "bg-purple-50 border-purple-300 text-purple-700 hover:bg-purple-100"
+                      : ""
+                  }`}>
+                  <span className="text-xs font-medium">Stock</span>
+                  {stockFilter !== "all" && (
+                    <Badge variant="secondary" className="px-1.5 py-0 text-xs">
+                      {stockFilter === "in-stock"
+                        ? "In Stock"
+                        : stockFilter === "low"
+                          ? "Low"
+                          : "Out"}
+                    </Badge>
+                  )}
+                  <ChevronDown className="h-3.5 w-3.5 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-40">
+                <DropdownMenuLabel>Stock Level</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setStockFilter("all")}
+                  className={stockFilter === "all" ? "bg-purple-50" : ""}>
+                  All Stock Levels
+                  {stockFilter === "all" && <span className="ml-auto">✓</span>}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setStockFilter("in-stock")}
+                  className={stockFilter === "in-stock" ? "bg-purple-50" : ""}>
+                  <Badge className="mr-2 bg-green-100 text-green-800">
+                    In Stock
+                  </Badge>
+                  {stockFilter === "in-stock" && (
+                    <span className="ml-auto">✓</span>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setStockFilter("low")}
+                  className={stockFilter === "low" ? "bg-purple-50" : ""}>
+                  <Badge className="mr-2 bg-yellow-100 text-yellow-800">
+                    Low Stock
+                  </Badge>
+                  {stockFilter === "low" && <span className="ml-auto">✓</span>}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setStockFilter("out")}
+                  className={stockFilter === "out" ? "bg-purple-50" : ""}>
+                  <Badge className="mr-2 bg-red-100 text-red-800">
+                    Out of Stock
+                  </Badge>
+                  {stockFilter === "out" && <span className="ml-auto">✓</span>}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-          {/* Clear Filters Button */}
-          {hasActiveFilters && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={clearFilters}
-              className="h-9 px-3 text-sm">
-              <X className="h-4 w-4 mr-1" />
-              Clear Filters
-            </Button>
-          )}
+            {/* Clear Filters Button */}
+            {hasActiveFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="h-9 px-3 text-xs text-red-600 hover:bg-red-50 hover:text-red-700">
+                <X className="h-3.5 w-3.5 mr-1" />
+                Clear All
+              </Button>
+            )}
+          </div>
 
           {/* Results Count */}
-          <span className="ml-auto text-sm text-muted-foreground">
-            Showing {filteredItems.length} of {items.length} items
-          </span>
+          <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
+            <span>
+              Showing{" "}
+              <span className="font-semibold">{filteredItems.length}</span> of{" "}
+              <span className="font-semibold">{items.length}</span> items
+            </span>
+            {hasActiveFilters && (
+              <span className="text-blue-600">
+                {items.length - filteredItems.length} filtered out
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -340,35 +518,34 @@ export function InventoryTable({ items, onUpdate }: InventoryTableProps) {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right py-2">
-                    {canWrite() && (
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEdit(item)}>
-                          Edit
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={async () => {
-                            if (
-                              confirm(
-                                "Are you sure you want to delete this item?",
-                              )
-                            ) {
-                              try {
-                                await deleteInventoryItem(item.id);
-                                onUpdate();
-                              } catch (error) {
-                                console.error("Error deleting item:", error);
-                              }
+                    <div className="flex justify-end gap-2">
+                      <AddStockDialog item={item} onSuccess={onUpdate} />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(item)}>
+                        Edit
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={async () => {
+                          if (
+                            confirm(
+                              "Are you sure you want to delete this item?",
+                            )
+                          ) {
+                            try {
+                              await deleteInventoryItem(item.id);
+                              onUpdate();
+                            } catch (error) {
+                              console.error("Error deleting item:", error);
                             }
-                          }}>
-                          Delete
-                        </Button>
-                      </div>
-                    )}
+                          }
+                        }}>
+                        Delete
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

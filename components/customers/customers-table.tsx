@@ -16,13 +16,20 @@ import {
   Filter,
   X,
   Plus,
-  Trash2,
   Phone,
   Mail,
   MapPin,
-  Edit2,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { CustomerDialog } from "./customer-dialog";
 import { canWrite } from "@/lib/permissions";
 
@@ -37,7 +44,11 @@ interface Customer {
   createdAt: string;
 }
 
-export function CustomersTable() {
+interface CustomersTableProps {
+  onRefresh?: () => void;
+}
+
+export function CustomersTable({ onRefresh }: CustomersTableProps = {}) {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -168,38 +179,103 @@ export function CustomersTable() {
         </div>
 
         {/* Filters Row */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Filter className="h-4 w-4" />
-            <span className="font-medium">Filters:</span>
+        <div className="space-y-3">
+          {/* Filter Header */}
+          <div className="flex items-center gap-2 text-sm">
+            <Filter className="h-4 w-4 text-blue-600" />
+            <span className="font-semibold text-foreground">Filters</span>
+            {hasActiveFilters && (
+              <Badge variant="secondary" className="ml-auto">
+                1 active
+              </Badge>
+            )}
           </div>
 
-          {/* Customer Type Filter */}
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-            <option value="all">All Types</option>
-            <option value="Individual">Individual</option>
-            <option value="Business">Business</option>
-          </select>
+          {/* Filter Controls */}
+          <div className="flex flex-wrap gap-2">
+            {/* Customer Type Filter */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={`h-9 gap-2 ${
+                    typeFilter !== "all"
+                      ? "bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100"
+                      : ""
+                  }`}>
+                  <span className="text-xs font-medium">Customer Type</span>
+                  {typeFilter !== "all" && (
+                    <Badge variant="secondary" className="px-1.5 py-0 text-xs">
+                      {typeFilter}
+                    </Badge>
+                  )}
+                  <ChevronDown className="h-3.5 w-3.5 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-40">
+                <DropdownMenuLabel>Select Type</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setTypeFilter("all")}
+                  className={typeFilter === "all" ? "bg-blue-50" : ""}>
+                  All Types
+                  {typeFilter === "all" && <span className="ml-auto">✓</span>}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setTypeFilter("Individual")}
+                  className={typeFilter === "Individual" ? "bg-blue-50" : ""}>
+                  <Badge
+                    variant="outline"
+                    className="mr-2 h-5 rounded-full border-green-200 bg-green-50 text-green-700">
+                    Individual
+                  </Badge>
+                  {typeFilter === "Individual" && (
+                    <span className="ml-auto">✓</span>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setTypeFilter("Business")}
+                  className={typeFilter === "Business" ? "bg-blue-50" : ""}>
+                  <Badge
+                    variant="outline"
+                    className="mr-2 h-5 rounded-full border-blue-200 bg-blue-50 text-blue-700">
+                    Business
+                  </Badge>
+                  {typeFilter === "Business" && (
+                    <span className="ml-auto">✓</span>
+                  )}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-          {/* Clear Filters Button */}
-          {hasActiveFilters && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={clearFilters}
-              className="h-9 px-3 text-sm">
-              <X className="h-4 w-4 mr-1" />
-              Clear Filters
-            </Button>
-          )}
+            {/* Clear Filters Button */}
+            {hasActiveFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="h-9 px-3 text-xs text-red-600 hover:bg-red-50 hover:text-red-700">
+                <X className="h-3.5 w-3.5 mr-1" />
+                Clear All
+              </Button>
+            )}
+          </div>
 
           {/* Results Count */}
-          <span className="ml-auto text-sm text-muted-foreground">
-            Showing {filteredCustomers.length} of {customers.length} customers
-          </span>
+          <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
+            <span>
+              Showing{" "}
+              <span className="font-semibold">{filteredCustomers.length}</span>{" "}
+              of <span className="font-semibold">{customers.length}</span>{" "}
+              customers
+            </span>
+            {hasActiveFilters && (
+              <span className="text-blue-600">
+                {customers.length - filteredCustomers.length} filtered out
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -294,21 +370,19 @@ export function CustomersTable() {
                         className="flex justify-end gap-2"
                         onClick={(e) => e.stopPropagation()}>
                         <Button
-                          variant="ghost"
-                          size="icon"
+                          variant="outline"
+                          size="sm"
                           onClick={() => {
                             setEditingCustomer(customer);
                             setIsDialogOpen(true);
-                          }}
-                          title="Edit customer">
-                          <Edit2 className="h-4 w-4 text-blue-600" />
+                          }}>
+                          Edit
                         </Button>
                         <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(customer.customerId)}
-                          title="Delete customer">
-                          <Trash2 className="h-4 w-4 text-red-600" />
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDelete(customer.customerId)}>
+                          Delete
                         </Button>
                       </div>
                     )}

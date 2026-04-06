@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -10,112 +10,122 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Plus } from "lucide-react"
-import type { InventoryItem } from "@/types"
-import { updateInventoryItem, createNewStockRecord, getCurrentUser } from "@/lib/api"
-import { isManagerOrAdmin } from "@/lib/permissions"
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Plus } from "lucide-react";
+import type { InventoryItem } from "@/types";
+import {
+  updateInventoryItem,
+  createNewStockRecord,
+  getCurrentUser,
+} from "@/lib/api";
+import { isManagerOrAdmin } from "@/lib/permissions";
 
 interface AddStockDialogProps {
-  item: InventoryItem
-  onSuccess: () => void
+  item: InventoryItem;
+  onSuccess: () => void;
 }
 
 export function AddStockDialog({ item, onSuccess }: AddStockDialogProps) {
-  const [open, setOpen] = useState(false)
-  const [quantity, setQuantity] = useState("")
-  const [newCostPrice, setNewCostPrice] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [showCostPrice, setShowCostPrice] = useState(false)
+  const [open, setOpen] = useState(false);
+  const [quantity, setQuantity] = useState("");
+  const [newCostPrice, setNewCostPrice] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [showCostPrice, setShowCostPrice] = useState(false);
 
   useEffect(() => {
-    setShowCostPrice(isManagerOrAdmin())
-  }, [])
+    setShowCostPrice(isManagerOrAdmin());
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    const addQty = parseInt(quantity)
+    e.preventDefault();
+
+    const addQty = parseInt(quantity);
     if (isNaN(addQty) || addQty <= 0) {
-      alert("Please enter a valid quantity greater than 0")
-      return
+      alert("Please enter a valid quantity greater than 0");
+      return;
     }
 
     // Validate cost price if user is manager/admin
-    let costPriceValue = item.costPrice || 0
+    let costPriceValue = item.costPrice || 0;
     if (showCostPrice && newCostPrice) {
-      const parsedCost = parseFloat(newCostPrice)
+      const parsedCost = parseFloat(newCostPrice);
       if (isNaN(parsedCost) || parsedCost < 0) {
-        alert("Please enter a valid cost price")
-        return
+        alert("Please enter a valid cost price");
+        return;
       }
-      
+
       // Calculate weighted average cost price (FIFO alternative)
-      const oldStock = item.stock
-      const oldCost = item.costPrice || 0
-      const newStock = oldStock + addQty
-      
+      const oldStock = item.stock;
+      const oldCost = item.costPrice || 0;
+      const newStock = oldStock + addQty;
+
       // Weighted average: (old_qty × old_cost + new_qty × new_cost) / total_qty
-      costPriceValue = ((oldStock * oldCost) + (addQty * parsedCost)) / newStock
+      costPriceValue = (oldStock * oldCost + addQty * parsedCost) / newStock;
     }
 
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      const updateData: any = { 
-        stock: item.stock + addQty
-      }
-      
-      // Only update cost price if user has permission and provided new cost
-      if (showCostPrice && newCostPrice) {
-        updateData.costPrice = costPriceValue
-      }
-      
-      const result = await updateInventoryItem(item.id, updateData)
-      
-      if (result) {
-        // Create NewStock record if cost price was provided
+      const user = getCurrentUser();
+
+      // Create NewStock record which will update inventory quantity via backend
+      try {
+        await createNewStockRecord({
+          inventory: parseInt(item.id),
+          quantity: addQty,
+          purchasePrice:
+            showCostPrice && newCostPrice
+              ? parseFloat(newCostPrice)
+              : item.costPrice || 0,
+          receivedDate: new Date().toISOString().split("T")[0],
+          supplier: item.sourceId ? parseInt(item.sourceId) : null,
+          note:
+            showCostPrice && newCostPrice
+              ? `Stock added via inventory management. New weighted average: $${costPriceValue.toFixed(2)}`
+              : `Stock added via inventory management by ${user?.username || "user"}`,
+        });
+
+        // Update cost price separately if it changed (don't update stock quantity again!)
         if (showCostPrice && newCostPrice) {
           try {
-            const user = getCurrentUser()
-            await createNewStockRecord({
-              inventory: parseInt(item.id),
-              quantity: addQty,
-              purchasePrice: parseFloat(newCostPrice),
-              receivedDate: new Date().toISOString().split('T')[0],
-              supplier: item.sourceId ? parseInt(item.sourceId) : null,
-              note: `Stock added via inventory management. New weighted average: $${costPriceValue.toFixed(2)}`
-            })
-          } catch (stockError) {
-            console.error("Error creating stock record:", stockError)
-            // Don't fail the entire operation if stock record creation fails
+            await updateInventoryItem(item.id, {
+              costPrice: costPriceValue,
+            });
+          } catch (costError) {
+            console.error("Error updating cost price:", costError);
+            // Cost price update failure is not critical
           }
         }
-        
-        setOpen(false)
-        setQuantity("")
-        setNewCostPrice("")
-        onSuccess()
-      } else {
-        alert("Failed to add stock")
+
+        setOpen(false);
+        setQuantity("");
+        setNewCostPrice("");
+        onSuccess();
+      } catch (stockError) {
+        console.error("Error adding stock:", stockError);
+        alert(
+          "Error adding stock: " +
+            (stockError instanceof Error
+              ? stockError.message
+              : "Unknown error"),
+        );
       }
     } catch (error) {
-      console.error("Error adding stock:", error)
-      alert("Error adding stock")
+      console.error("Error in add stock flow:", error);
+      alert("Error adding stock");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="h-8 text-xs bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
-        >
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 text-xs bg-green-50 hover:bg-green-100 text-green-700 border-green-200">
           <Plus className="h-3 w-3 mr-1" />
           Add Stock
         </Button>
@@ -156,7 +166,7 @@ export function AddStockDialog({ item, onSuccess }: AddStockDialogProps) {
                 <Label htmlFor="new-cost-price">
                   New Cost Price ($) - Per Unit
                   <span className="text-xs text-muted-foreground ml-2">
-                    (Current: ${item.costPrice?.toFixed(2) || '0.00'})
+                    (Current: ${item.costPrice?.toFixed(2) || "0.00"})
                   </span>
                 </Label>
                 <Input
@@ -168,15 +178,19 @@ export function AddStockDialog({ item, onSuccess }: AddStockDialogProps) {
                   value={newCostPrice}
                   onChange={(e) => setNewCostPrice(e.target.value)}
                 />
-                {newCostPrice && quantity && parseInt(quantity) > 0 && parseFloat(newCostPrice) >= 0 && (
-                  <div className="text-xs text-muted-foreground bg-blue-50 p-2 rounded">
-                    <strong>Weighted Average Cost:</strong> $
-                    {(
-                      ((item.stock * (item.costPrice || 0)) + (parseInt(quantity) * parseFloat(newCostPrice))) /
-                      (item.stock + parseInt(quantity))
-                    ).toFixed(2)}
-                  </div>
-                )}
+                {newCostPrice &&
+                  quantity &&
+                  parseInt(quantity) > 0 &&
+                  parseFloat(newCostPrice) >= 0 && (
+                    <div className="text-xs text-muted-foreground bg-blue-50 p-2 rounded">
+                      <strong>Weighted Average Cost:</strong> $
+                      {(
+                        (item.stock * (item.costPrice || 0) +
+                          parseInt(quantity) * parseFloat(newCostPrice)) /
+                        (item.stock + parseInt(quantity))
+                      ).toFixed(2)}
+                    </div>
+                  )}
               </div>
             )}
             {quantity && parseInt(quantity) > 0 && (
@@ -189,12 +203,11 @@ export function AddStockDialog({ item, onSuccess }: AddStockDialogProps) {
             )}
           </div>
           <DialogFooter>
-            <Button 
-              type="button" 
-              variant="outline" 
+            <Button
+              type="button"
+              variant="outline"
               onClick={() => setOpen(false)}
-              disabled={isLoading}
-            >
+              disabled={isLoading}>
               Cancel
             </Button>
             <Button type="submit" disabled={isLoading}>
@@ -204,5 +217,5 @@ export function AddStockDialog({ item, onSuccess }: AddStockDialogProps) {
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

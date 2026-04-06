@@ -207,6 +207,25 @@ export function InventoryForm({
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Validate file type
+      const allowedTypes = [
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
+      if (!allowedTypes.includes(file.type)) {
+        alert(`Invalid file type. Please upload: JPG, PNG, GIF, or WebP`);
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      const maxSize = 5 * 1024 * 1024;
+      if (file.size > maxSize) {
+        alert("File is too large. Maximum size is 5MB");
+        return;
+      }
+
       setImageFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -399,16 +418,22 @@ export function InventoryForm({
 
     try {
       if (imageFile) {
-        const uploadedUrl = await uploadProductImage(imageFile);
+        try {
+          const uploadedUrl = await uploadProductImage(imageFile);
 
-        if (uploadedUrl) {
-          imageUrl = uploadedUrl;
+          if (uploadedUrl) {
+            imageUrl = uploadedUrl;
 
-          if (formData.imageUrl && formData.imageUrl !== uploadedUrl) {
-            await deleteProductImage(formData.imageUrl);
+            if (formData.imageUrl && formData.imageUrl !== uploadedUrl) {
+              await deleteProductImage(formData.imageUrl);
+            }
           }
-        } else {
-          alert("Failed to upload image. Please try again.");
+        } catch (uploadError) {
+          const errorMessage =
+            uploadError instanceof Error
+              ? uploadError.message
+              : "Failed to upload image";
+          alert(errorMessage);
           setIsUploading(false);
           return;
         }

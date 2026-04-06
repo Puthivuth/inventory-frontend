@@ -13,13 +13,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, AlertCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface Invoice {
   invoiceId: number;
@@ -68,6 +69,14 @@ interface Product {
   status: string;
 }
 
+interface Inventory {
+  inventoryId: number;
+  product: number;
+  quantity: number;
+  reorderLevel: number;
+  location: string;
+}
+
 interface LineItem {
   product: number | null;
   productName: string;
@@ -89,11 +98,12 @@ export function PurchaseOrderForm({
 }: PurchaseOrderFormProps) {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [inventory, setInventory] = useState<Inventory[]>([]);
   const [customerId, setCustomerId] = useState<number | null>(
-    invoice?.customer || null
+    invoice?.customer || null,
   );
   const [paymentMethod, setPaymentMethod] = useState(
-    invoice?.paymentMethod || "Cash"
+    invoice?.paymentMethod || "Cash",
   );
   const [status, setStatus] = useState(invoice?.status || "Pending");
   const [note, setNote] = useState(invoice?.note || "");
@@ -106,6 +116,13 @@ export function PurchaseOrderForm({
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
   const [newCustomerEmail, setNewCustomerEmail] = useState("");
   const [newCustomerAddress, setNewCustomerAddress] = useState("");
+  const [stockWarningDialog, setStockWarningDialog] = useState(false);
+  const [stockWarnings, setStockWarnings] = useState<
+    Array<{ productName: string; available: number; requested: number }>
+  >([]);
+  const [errorDialog, setErrorDialog] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [proceedWithLowStock, setProceedWithLowStock] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -145,22 +162,31 @@ export function PurchaseOrderForm({
           {
             headers: { Authorization: `Token ${token}` },
             signal: controller.signal,
-          }
+          },
         );
         if (customersRes.ok) {
           setCustomers(await customersRes.json());
         }
 
         // Fetch products
-        const productsRes = await fetch(
-          "http://localhost:8000/api/products/",
+        const productsRes = await fetch("http://localhost:8000/api/products/", {
+          headers: { Authorization: `Token ${token}` },
+          signal: controller.signal,
+        });
+        if (productsRes.ok) {
+          setProducts(await productsRes.json());
+        }
+
+        // Fetch inventory
+        const inventoryRes = await fetch(
+          "http://localhost:8000/api/inventory/",
           {
             headers: { Authorization: `Token ${token}` },
             signal: controller.signal,
-          }
+          },
         );
-        if (productsRes.ok) {
-          setProducts(await productsRes.json());
+        if (inventoryRes.ok) {
+          setInventory(await inventoryRes.json());
         }
       } finally {
         clearTimeout(timeoutId);
@@ -168,7 +194,7 @@ export function PurchaseOrderForm({
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
         console.error(
-          "Data loading timeout - request took longer than 30 seconds"
+          "Data loading timeout - request took longer than 30 seconds",
         );
       } else {
         console.error("Error loading data:", error);
@@ -193,10 +219,53 @@ export function PurchaseOrderForm({
     setLineItems(lineItems.filter((_, i) => i !== index));
   };
 
+  const getAvailableStock = (productId: number): number => {
+    const inventoryItem = inventory.find((inv) => inv.product === productId);
+    return inventoryItem?.quantity || 0;
+  };
+
+  const checkStockAvailability = (): {
+    hasWarnings: boolean;
+    warnings: Array<{
+      productName: string;
+      available: number;
+      requested: number;
+    }>;
+  } => {
+    const warnings: Array<{
+      productName: string;
+      available: number;
+      requested: number;
+    }> = [];
+
+    lineItems.forEach((item) => {
+      if (item.product) {
+        const availableStock = getAvailableStock(item.product);
+        if (item.quantity > availableStock) {
+          warnings.push({
+            productName: item.productName,
+            available: availableStock,
+            requested: item.quantity,
+          });
+        }
+      }
+    });
+
+    return {
+      hasWarnings: warnings.length > 0,
+      warnings,
+    };
+  };
+
+  const getProductStock = (productId: number | null) => {
+    if (!productId) return 0;
+    return getAvailableStock(productId);
+  };
+
   const updateItem = (
     index: number,
     field: keyof LineItem,
-    value: string | number
+    value: string | number,
   ) => {
     const newItems = [...lineItems];
     if (field === "product") {
@@ -233,7 +302,7 @@ export function PurchaseOrderForm({
   const calculateTotalBeforeDiscount = () => {
     return lineItems.reduce(
       (sum, item) => sum + item.quantity * item.pricePerUnit,
-      0
+      0,
     );
   };
 
@@ -264,24 +333,21 @@ export function PurchaseOrderForm({
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-      const response = await fetch(
-        "http://localhost:8000/api/customers/",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Token ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            name: newCustomerName.trim(),
-            customerType: newCustomerType,
-            phone: newCustomerPhone.trim() || null,
-            email: newCustomerEmail.trim() || null,
-            businessAddress: newCustomerAddress.trim() || null,
-          }),
-          signal: controller.signal,
-        }
-      );
+      const response = await fetch("http://localhost:8000/api/customers/", {
+        method: "POST",
+        headers: {
+          Authorization: `Token ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: newCustomerName.trim(),
+          customerType: newCustomerType,
+          phone: newCustomerPhone.trim() || null,
+          email: newCustomerEmail.trim() || null,
+          businessAddress: newCustomerAddress.trim() || null,
+        }),
+        signal: controller.signal,
+      });
 
       clearTimeout(timeoutId);
 
@@ -324,14 +390,23 @@ export function PurchaseOrderForm({
       return;
     }
 
+    // Check stock availability
+    const { hasWarnings, warnings } = checkStockAvailability();
+    if (hasWarnings && !proceedWithLowStock) {
+      setStockWarnings(warnings);
+      setStockWarningDialog(true);
+      return;
+    }
+
     setIsSubmitting(true);
+    setProceedWithLowStock(false);
 
     try {
       const token = localStorage.getItem("token");
 
       // Get customer details
       const selectedCustomer = customers.find(
-        (c) => c.customerId === customerId
+        (c) => c.customerId === customerId,
       );
 
       const invoiceData = {
@@ -373,22 +448,19 @@ export function PurchaseOrderForm({
             },
             body: JSON.stringify(invoiceData),
             signal: controller.signal,
-          }
+          },
         );
       } else {
         // Create new invoice
-        response = await fetch(
-          "http://localhost:8000/api/invoices/",
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Token ${token}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(invoiceData),
-            signal: controller.signal,
-          }
-        );
+        response = await fetch("http://localhost:8000/api/invoices/", {
+          method: "POST",
+          headers: {
+            Authorization: `Token ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(invoiceData),
+          signal: controller.signal,
+        });
       }
 
       clearTimeout(timeoutId);
@@ -399,23 +471,42 @@ export function PurchaseOrderForm({
         const errorText = await response.text();
         console.error("Error response status:", response.status);
         console.error("Error response:", errorText);
+
+        let formattedError = "Failed to save order. Please try again.";
+
         try {
           const errorJson = JSON.parse(errorText);
-          alert(`Failed to save order: ${JSON.stringify(errorJson)}`);
+
+          // Handle specific validation errors
+          if (response.status === 400) {
+            if (errorJson.lineItems) {
+              formattedError = `Stock Issue: ${errorJson.lineItems}`;
+            } else if (errorJson.detail) {
+              formattedError = `Error: ${errorJson.detail}`;
+            } else {
+              formattedError = `Validation Error: ${JSON.stringify(errorJson)}`;
+            }
+          } else {
+            formattedError = `Failed to save order: ${JSON.stringify(errorJson)}`;
+          }
         } catch {
-          alert(`Failed to save order: ${errorText.substring(0, 200)}`);
+          formattedError = `Failed to save order: ${errorText.substring(0, 200)}`;
         }
+
+        setErrorMessage(formattedError);
+        setErrorDialog(true);
       }
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
         console.error("Request timeout - took longer than 30 seconds");
-        alert(
-          "Request timeout. The server took too long to respond. Please try again."
+        setErrorMessage(
+          "Request timeout. The server took too long to respond. Please try again.",
         );
       } else {
         console.error("Error saving order:", error);
-        alert("Failed to save order. Please try again.");
+        setErrorMessage("Failed to save order. Please try again.");
       }
+      setErrorDialog(true);
     } finally {
       setIsSubmitting(false);
     }
@@ -559,16 +650,27 @@ export function PurchaseOrderForm({
 
                 <div className="space-y-2">
                   <Label>Quantity *</Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    value={item.quantity}
-                    onChange={(e) =>
-                      updateItem(index, "quantity", e.target.value)
-                    }
-                    disabled={isViewMode}
-                    required
-                  />
+                  <div>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={item.quantity}
+                      onChange={(e) =>
+                        updateItem(index, "quantity", e.target.value)
+                      }
+                      disabled={isViewMode}
+                      required
+                    />
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Available: {getProductStock(item.product)} units
+                    </div>
+                    {item.product &&
+                      item.quantity > getProductStock(item.product) && (
+                        <div className="mt-1 text-xs text-red-600 font-medium">
+                          ⚠️ Low stock!
+                        </div>
+                      )}
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -705,8 +807,8 @@ export function PurchaseOrderForm({
             {isSubmitting
               ? "Saving..."
               : invoice
-              ? "Update Order"
-              : "Create Order"}
+                ? "Update Order"
+                : "Create Order"}
           </Button>
         </div>
       )}
@@ -793,6 +895,117 @@ export function PurchaseOrderForm({
               disabled={!newCustomerName || !newCustomerType}
               className="bg-orange-600 hover:bg-orange-700">
               Add Customer
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Stock Warning Dialog */}
+      <Dialog open={stockWarningDialog} onOpenChange={setStockWarningDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-yellow-600">
+              <AlertCircle className="h-5 w-5" />
+              Low Stock Warning
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              The following items have insufficient stock available. Do you want
+              to proceed anyway?
+            </p>
+            <div className="space-y-2">
+              {stockWarnings.map((warning, idx) => (
+                <div
+                  key={idx}
+                  className="p-3 border border-yellow-200 rounded-md bg-yellow-50 dark:bg-yellow-900/20">
+                  <div className="font-medium text-sm">
+                    {warning.productName}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Requested:{" "}
+                    <span className="font-semibold">{warning.requested}</span> |
+                    Available:{" "}
+                    <span className="font-semibold text-red-600">
+                      {warning.available}
+                    </span>
+                  </div>
+                  <div className="text-xs text-red-600 font-medium mt-1">
+                    Shortage: {warning.requested - warning.available} units
+                  </div>
+                </div>
+              ))}
+            </div>
+            <Alert className="border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20">
+              <AlertCircle className="h-4 w-4 text-yellow-600" />
+              <AlertTitle className="text-yellow-600">Stock Alert</AlertTitle>
+              <AlertDescription className="text-yellow-700 dark:text-yellow-200">
+                Proceeding may result in backordering. Ensure this is
+                intentional.
+              </AlertDescription>
+            </Alert>
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setStockWarningDialog(false);
+                setStockWarnings([]);
+              }}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                setProceedWithLowStock(true);
+                setStockWarningDialog(false);
+                // Manually trigger form submission
+                const form = document.querySelector("form");
+                if (form) {
+                  form.dispatchEvent(
+                    new Event("submit", { bubbles: true, cancelable: true }),
+                  );
+                }
+              }}
+              className="bg-yellow-600 hover:bg-yellow-700">
+              Proceed Anyway
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Error Dialog */}
+      <Dialog open={errorDialog} onOpenChange={setErrorDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertCircle className="h-5 w-5" />
+              Order Creation Failed
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error Details</AlertTitle>
+              <AlertDescription className="mt-2 text-sm whitespace-pre-wrap break-words">
+                {errorMessage}
+              </AlertDescription>
+            </Alert>
+            <p className="text-xs text-muted-foreground">
+              Please check the details above and try again. Contact support if
+              the issue persists.
+            </p>
+          </div>
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              onClick={() => {
+                setErrorDialog(false);
+                setErrorMessage("");
+              }}
+              className="bg-orange-600 hover:bg-orange-700">
+              Close
             </Button>
           </div>
         </DialogContent>

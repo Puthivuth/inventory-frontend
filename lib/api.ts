@@ -27,6 +27,7 @@ interface ApiProduct {
   salePrice: string; // Sale price to customers
   discount: string;
   subcategory: number;
+  subcategoryName?: string; // Subcategory name from API
   source: number | null;
   status: string;
   createdAt: string;
@@ -210,7 +211,7 @@ export async function getInventoryItems(): Promise<InventoryItem[]> {
         sku: product?.skuCode || "",
         category: category?.name || "Uncategorized",
         categoryId: category?.categoryId?.toString() || "",
-        subcategory: subcategory?.name || "",
+        subcategory: product?.subcategoryName || subcategory?.name || "",
         subcategoryId: product?.subcategory?.toString() || "",
         unit: product?.unit || "pcs",
         source: source?.name || "",
@@ -332,6 +333,10 @@ export async function addInventoryItem(
     }
 
     // 2. Create Product
+    // Auto-set status to "Discount" if discount amount is provided
+    const discount = item.discount || 0;
+    const autoStatus = discount > 0 ? "Discount" : item.status || "Active";
+
     const product = (await fetchAPI("/products/", {
       method: "POST",
       body: JSON.stringify({
@@ -342,11 +347,11 @@ export async function addInventoryItem(
         costPrice: item.costPrice?.toFixed(2) || "0.00",
         salePrice:
           item.salePrice?.toFixed(2) || item.price?.toFixed(2) || "0.00",
-        discount: item.discount?.toFixed(2) || "0.00",
+        discount: discount.toFixed(2),
         subcategory: subcategoryId,
         source: item.source ? parseInt(item.source) : null,
         image: item.imageUrl,
-        status: item.status || "Active",
+        status: autoStatus,
       }),
     })) as ApiProduct;
 
@@ -363,6 +368,7 @@ export async function addInventoryItem(
 
     return {
       id: inventory.inventoryId.toString(),
+      productId: product.productId.toString(),
       name: product.productName,
       description: product.description,
       sku: product.skuCode,
@@ -437,10 +443,15 @@ export async function updateInventoryItem(
         productUpdates.salePrice = updates.salePrice.toFixed(2);
       else if (updates.price !== undefined)
         productUpdates.salePrice = updates.price.toFixed(2);
-      if (updates.discount !== undefined)
+      if (updates.discount !== undefined) {
         productUpdates.discount = updates.discount.toFixed(2);
+        // Auto-set status to "Discount" if discount > 0
+        productUpdates.status =
+          updates.discount > 0 ? "Discount" : updates.status || "Active";
+      }
       if (updates.unit) productUpdates.unit = updates.unit;
-      if (updates.status) productUpdates.status = updates.status;
+      if (updates.status && !updates.discount)
+        productUpdates.status = updates.status;
       if (updates.subcategory)
         productUpdates.subcategory = parseInt(updates.subcategory);
       if (updates.source !== undefined) {
@@ -490,6 +501,7 @@ export async function updateInventoryItem(
 
     return {
       id: updatedInventory.inventoryId.toString(),
+      productId: productId.toString(),
       name: updatedProduct.productName,
       description: updatedProduct.description,
       sku: updatedProduct.skuCode,
@@ -557,8 +569,17 @@ export async function uploadProductImage(file: File): Promise<string | null> {
 
     if (!res.ok) {
       const errorText = await res.text();
-      console.error("Image upload failed:", res.status, errorText);
-      throw new Error(`Image upload failed: ${res.statusText}`);
+      let errorMessage = "Image upload failed";
+
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorMessage = errorJson.error || errorMessage;
+      } catch {
+        errorMessage = errorText || errorMessage;
+      }
+
+      console.error("Image upload failed:", res.status, errorMessage);
+      throw new Error(errorMessage);
     }
 
     const data = await res.json();
@@ -566,7 +587,7 @@ export async function uploadProductImage(file: File): Promise<string | null> {
     return data.url;
   } catch (error) {
     console.error("Error uploading image:", error);
-    return null;
+    throw error;
   }
 }
 
@@ -594,7 +615,9 @@ export async function getInvoices(): Promise<any[]> {
         return {
           id: invoice.invoiceId?.toString() || "unknown",
           invoiceId: invoice.invoiceId,
-          invoiceNumber: `INV-${invoice.invoiceId}`,
+          invoiceNumber:
+            invoice.invoiceNumber ||
+            `INV-${new Date(invoice.createdAt).getFullYear()}-${String(invoice.invoiceId).padStart(3, "0")}`,
           customerName: invoice.customerName || "Guest",
           customerEmail: invoice.customerEmail || "",
           customerPhone: invoice.customerPhone || "",
@@ -728,7 +751,9 @@ export async function addInvoice(invoice: any): Promise<any | null> {
     return {
       ...invoice,
       id: newInvoice.invoiceId.toString(),
-      invoiceNumber: `INV-${newInvoice.invoiceId}`,
+      invoiceNumber:
+        newInvoice.invoiceNumber ||
+        `INV-${new Date(newInvoice.createdAt).getFullYear()}-${String(newInvoice.invoiceId).padStart(3, "0")}`,
       createdAt: newInvoice.createdAt,
     };
   } catch (error: any) {
@@ -783,20 +808,38 @@ export async function deleteInvoice(id: string): Promise<boolean> {
 // Supplier CRUD operations
 export async function getSuppliers(): Promise<Supplier[]> {
   try {
-    const sources = await fetchAPI("/sources/");
-    const suppliers: Supplier[] = sources.map((s: any) => ({
-      id: s.sourceId.toString(),
-      name: s.name,
-      contactPerson: s.contactPerson,
-      email: s.email,
-      phone: s.phone,
-      address: s.address,
-      notes: "",
-      lastTransactionDate: s.createdAt, // Placeholder
-      createdAt: s.createdAt,
-      updatedAt: s.createdAt,
-      userId: "",
-    }));
+    const [sources, products] = await Promise.all([
+      fetchAPI("/sources/"),
+      fetchAPI("/products/"),
+    ]);
+
+    const suppliers: Supplier[] = sources.map((s: any) => {
+      // Get all subcategories from products supplied by this source
+      const suppliedSubcategories = Array.from(
+        new Set(
+          products
+            .filter((p: any) => p.source === s.sourceId)
+            .map((p: any) => p.subcategory)
+            .filter(Boolean),
+        ),
+      ).sort();
+
+      return {
+        id: s.sourceId.toString(),
+        name: s.name,
+        contactPerson: s.contactPerson,
+        email: s.email,
+        phone: s.phone,
+        address: s.address,
+        district: s.district,
+        subcategories: suppliedSubcategories,
+        notes: "",
+        lastTransactionDate: s.createdAt, // Placeholder
+        createdAt: s.createdAt,
+        updatedAt: s.createdAt,
+        userId: "",
+      };
+    });
 
     // Sort by createdAt descending (newest first)
     return suppliers.sort(
@@ -821,6 +864,7 @@ export async function addSupplier(
         email: supplier.email,
         phone: supplier.phone,
         address: supplier.address,
+        district: supplier.district,
       }),
     });
     return {
@@ -830,6 +874,7 @@ export async function addSupplier(
       email: newSource.email,
       phone: newSource.phone,
       address: newSource.address,
+      district: newSource.district,
       notes: "",
       createdAt: newSource.createdAt,
       updatedAt: newSource.createdAt,
@@ -851,6 +896,7 @@ export async function updateSupplier(
     if (updates.email) updateData.email = updates.email;
     if (updates.phone) updateData.phone = updates.phone;
     if (updates.address) updateData.address = updates.address;
+    if (updates.district !== undefined) updateData.district = updates.district;
 
     const updatedSource = await fetchAPI(`/sources/${id}/`, {
       method: "PATCH",
@@ -864,6 +910,7 @@ export async function updateSupplier(
       email: updatedSource.email,
       phone: updatedSource.phone,
       address: updatedSource.address,
+      district: updatedSource.district,
       notes: "",
       createdAt: updatedSource.createdAt,
       updatedAt: updatedSource.createdAt,

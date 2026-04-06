@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getCurrentUser } from "@/lib/api";
+import { getCurrentUser, getInventoryItems } from "@/lib/api";
 import {
   calculateSalesData,
   getLowStockItems,
@@ -26,8 +26,7 @@ import {
 import { Sidebar } from "@/components/navigation/sidebar";
 import { Button } from "@/components/ui/button";
 import { useSidebarState } from "@/hooks/use-sidebar-state";
-import { CategoryDistribution } from "@/components/dashboard/category-distribution";
-import { StockMovements } from "@/components/dashboard/stock-movements";
+import { CategoryDistribution } from "@/components/dashboard/sub-category-distribution";
 import { RevenueChart } from "@/components/dashboard/revenue-chart";
 import { SupplierAnalytics } from "@/components/dashboard/supplier-analytics";
 import { RestockAlerts } from "@/components/dashboard/restock-alerts";
@@ -53,6 +52,7 @@ export default function DashboardPage() {
   });
   const [lowStockItems, setLowStockItems] = useState<any[]>([]);
   const [salesData, setSalesData] = useState<any[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
   const [categoryData, setCategoryData] = useState<any[]>([]);
   const [revenueData, setRevenueData] = useState<any[]>([]);
   const [supplierAnalytics, setSupplierAnalytics] = useState<any[]>([]);
@@ -75,32 +75,56 @@ export default function DashboardPage() {
   const loadDashboardData = async () => {
     setLoading(true);
     try {
-      const [statsData, lowStock, sales, revenue, suppliers, restock] =
-        await Promise.all([
-          calculateTotalStats(),
-          getLowStockItems(),
-          calculateSalesData(),
-          calculateRevenueByDate(),
-          calculateSupplierAnalytics(),
-          calculateRestockPredictions(),
-        ]);
+      const [
+        statsData,
+        lowStock,
+        sales,
+        revenue,
+        suppliers,
+        restock,
+        inventory,
+      ] = await Promise.all([
+        calculateTotalStats(),
+        getLowStockItems(),
+        calculateSalesData(),
+        calculateRevenueByDate(),
+        calculateSupplierAnalytics(),
+        calculateRestockPredictions(),
+        getInventoryItems(),
+      ]);
       setStats(statsData);
       setLowStockItems(lowStock);
-      setSalesData(sales);
+      setInventoryItems(inventory);
+
+      // Enhance sales data with subcategory information
+      const inventoryMap = new Map(
+        inventory.map((item: any) => [item.id, item]),
+      );
+      const salesWithCategory = sales.map((item: any) => ({
+        ...item,
+        category: inventoryMap.get(item.itemId)?.subcategory || "Uncategorized",
+      }));
+
+      setSalesData(salesWithCategory);
       setRevenueData(revenue);
       setSupplierAnalytics(suppliers);
       setRestockPredictions(restock);
-      // Calculate category distribution from sales data
-      const categories = sales.reduce((acc: any, item: any) => {
-        const existing = acc.find((c: any) => c.name === item.category);
-        if (existing) {
-          existing.value += 1;
-        } else {
-          acc.push({ name: item.category, value: 1 });
-        }
-        return acc;
-      }, []);
-      setCategoryData(categories);
+
+      // Calculate category distribution from inventory items (including unsold products)
+      const categoriesFromInventory = inventory.reduce(
+        (acc: any, item: any) => {
+          const subcategoryName = item.subcategory || "Uncategorized";
+          const existing = acc.find((c: any) => c.name === subcategoryName);
+          if (existing) {
+            existing.value += 1;
+          } else {
+            acc.push({ name: subcategoryName, value: 1 });
+          }
+          return acc;
+        },
+        [],
+      );
+      setCategoryData(categoriesFromInventory);
     } catch (error) {
       console.error("Error loading dashboard data:", error);
     } finally {
@@ -118,31 +142,40 @@ export default function DashboardPage() {
 
       <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0">
         <div className="mb-6 sm:mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            {!isSidebarOpen && (
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setIsSidebarOpen(true)}
-                className="bg-white hover:bg-gray-50 text-gray-700 shadow-sm border shrink-0">
-                <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
-              </Button>
-            )}
-            <div className="flex h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 items-center justify-center rounded-lg bg-blue-600 text-white shrink-0">
-              <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6" />
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <div className="flex items-center gap-3">
+              {!isSidebarOpen && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setIsSidebarOpen(true)}
+                  className="bg-white hover:bg-gray-50 text-gray-700 shadow-sm border shrink-0">
+                  <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
+                </Button>
+              )}
+              <div className="flex h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 items-center justify-center rounded-lg bg-blue-600 text-white shrink-0">
+                <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6" />
+              </div>
+              <div className="min-w-0">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
+                  Business Intelligence
+                </h1>
+                <p className="text-xs sm:text-sm md:text-base text-muted-foreground hidden sm:block">
+                  {userRole === "staff"
+                    ? "Sales & Inventory Overview"
+                    : userRole === "manager"
+                      ? "Management Dashboard & Analytics"
+                      : "Executive Dashboard & Insights"}
+                </p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
-                Business Intelligence
-              </h1>
-              <p className="text-xs sm:text-sm md:text-base text-muted-foreground hidden sm:block">
-                {userRole === "staff"
-                  ? "Sales & Inventory Overview"
-                  : userRole === "manager"
-                    ? "Management Dashboard & Analytics"
-                    : "Executive Dashboard & Insights"}
-              </p>
-            </div>
+            <Button
+              onClick={loadDashboardData}
+              disabled={loading}
+              variant="outline"
+              className="shrink-0">
+              {loading ? "Refreshing..." : "Refresh"}
+            </Button>
           </div>
         </div>
 
@@ -165,10 +198,11 @@ export default function DashboardPage() {
               </div>
               <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
                 <LowStockAlert items={lowStockItems} />
-                <CategoryDistribution data={categoryData} />
-              </div>
-              <div className="grid gap-6 grid-cols-1">
-                <StockMovements />
+                <CategoryDistribution
+                  data={categoryData}
+                  salesData={salesData}
+                  inventoryData={inventoryItems}
+                />
               </div>
               {isManagerOrAdmin() && (
                 <div className="grid gap-6 grid-cols-1">

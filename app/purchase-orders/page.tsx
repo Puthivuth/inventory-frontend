@@ -16,6 +16,7 @@ export default function PurchaseOrdersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useSidebarState();
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     const checkAuth = () => {
@@ -32,6 +33,10 @@ export default function PurchaseOrdersPage() {
     checkAuth();
   }, [router]);
 
+  const handleRefresh = () => {
+    setRefreshKey((prev) => prev + 1);
+  };
+
   if (isLoading) {
     return null;
   }
@@ -42,27 +47,36 @@ export default function PurchaseOrdersPage() {
 
       <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0">
         <div className="mb-6 sm:mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            {!isSidebarOpen && (
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setIsSidebarOpen(true)}
-                className="bg-white hover:bg-gray-50 text-gray-700 shadow-sm border flex-shrink-0">
-                <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
-              </Button>
-            )}
-            <div className="flex h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 items-center justify-center rounded-lg bg-orange-600 text-white flex-shrink-0">
-              <ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6" />
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <div className="flex items-center gap-3 min-w-0">
+              {!isSidebarOpen && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setIsSidebarOpen(true)}
+                  className="bg-white hover:bg-gray-50 text-gray-700 shadow-sm border flex-shrink-0">
+                  <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
+                </Button>
+              )}
+              <div className="flex h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 items-center justify-center rounded-lg bg-orange-600 text-white flex-shrink-0">
+                <ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6" />
+              </div>
+              <div className="min-w-0">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
+                  Purchase Orders
+                </h1>
+                <p className="text-xs sm:text-sm md:text-base text-muted-foreground hidden sm:block">
+                  Create and manage customer purchase orders (invoices)
+                </p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
-                Purchase Orders
-              </h1>
-              <p className="text-xs sm:text-sm md:text-base text-muted-foreground hidden sm:block">
-                Create and manage customer purchase orders (invoices)
-              </p>
-            </div>
+            <Button
+              onClick={handleRefresh}
+              variant="outline"
+              size="sm"
+              className="flex-shrink-0">
+              Refresh
+            </Button>
           </div>
         </div>
 
@@ -74,7 +88,7 @@ export default function PurchaseOrdersPage() {
           </Alert>
         )}
 
-        <PurchaseOrderTable />
+        <PurchaseOrderTable key={refreshKey} onRefresh={handleRefresh} />
       </main>
     </div>
   );

@@ -475,20 +475,6 @@ export function PurchaseOrderTable({
               </Button>
             )}
           </div>
-
-          {/* Results Count */}
-          <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
-            <span>
-              Showing{" "}
-              <span className="font-semibold">{filteredInvoices.length}</span>{" "}
-              of <span className="font-semibold">{invoices.length}</span> orders
-            </span>
-            {hasActiveFilters && (
-              <span className="text-blue-600">
-                {invoices.length - filteredInvoices.length} filtered out
-              </span>
-            )}
-          </div>
         </div>
       </div>
 

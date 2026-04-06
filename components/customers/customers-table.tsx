@@ -261,21 +261,6 @@ export function CustomersTable({ onRefresh }: CustomersTableProps = {}) {
               </Button>
             )}
           </div>
-
-          {/* Results Count */}
-          <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
-            <span>
-              Showing{" "}
-              <span className="font-semibold">{filteredCustomers.length}</span>{" "}
-              of <span className="font-semibold">{customers.length}</span>{" "}
-              customers
-            </span>
-            {hasActiveFilters && (
-              <span className="text-blue-600">
-                {customers.length - filteredCustomers.length} filtered out
-              </span>
-            )}
-          </div>
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import type { InventoryItem } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,10 +14,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, X } from "lucide-react";
-import { InventoryDialog } from "./inventory-dialog";
+import { Search, Filter, X, ChevronDown, Plus } from "lucide-react";
 import { ImageSearchDialog } from "./image-search";
-
+import { AddStockDialogControlled } from "./add-stock-dialog-controlled";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { deleteInventoryItem } from "@/lib/api";
 import { canWrite, isManagerOrAdmin } from "@/lib/permissions";
 import Image from "next/image";
@@ -27,12 +35,14 @@ interface InventoryTableProps {
 }
 
 export function InventoryTable({ items, onUpdate }: InventoryTableProps) {
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
-  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [stockFilter, setStockFilter] = useState<string>("all");
+  const [selectedItemForStock, setSelectedItemForStock] =
+    useState<InventoryItem | null>(null);
+  const [isAddStockDialogOpen, setIsAddStockDialogOpen] = useState(false);
 
   // Get unique categories from items
   const categories = useMemo(() => {
@@ -84,13 +94,7 @@ export function InventoryTable({ items, onUpdate }: InventoryTableProps) {
   };
 
   const handleEdit = (item: InventoryItem) => {
-    setEditingItem(item);
-    setIsDialogOpen(true);
-  };
-
-  const handleDialogClose = () => {
-    setIsDialogOpen(false);
-    setEditingItem(null);
+    router.push(`/inventory/${item.id}/edit`);
   };
 
   return (
@@ -110,80 +114,235 @@ export function InventoryTable({ items, onUpdate }: InventoryTableProps) {
           {canWrite() && (
             <div className="flex gap-2">
               <ImageSearchDialog />
-              <InventoryDialog
-                item={editingItem}
-                open={isDialogOpen}
-                onOpenChange={(open) => {
-                  setIsDialogOpen(open);
-                  if (!open) setEditingItem(null);
-                }}
-                onSuccess={() => {
-                  onUpdate();
-                  handleDialogClose();
-                }}
-              />
+              <Button
+                onClick={() => router.push("/inventory/add")}
+                className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Product
+              </Button>
             </div>
           )}
         </div>
 
         {/* Filters Row */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Filter className="h-4 w-4" />
-            <span className="font-medium">Filters:</span>
+        <div className="space-y-3">
+          {/* Filter Header */}
+          <div className="flex items-center gap-2 text-sm">
+            <Filter className="h-4 w-4 text-blue-600" />
+            <span className="font-semibold text-foreground">Filters</span>
+            {hasActiveFilters && (
+              <Badge variant="secondary" className="ml-auto">
+                {(selectedCategory !== "all" ? 1 : 0) +
+                  (selectedStatus !== "all" ? 1 : 0) +
+                  (stockFilter !== "all" ? 1 : 0)}{" "}
+                active
+              </Badge>
+            )}
           </div>
 
-          {/* Category Filter */}
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-            <option value="all">All Categories</option>
-            {categories.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
+          {/* Filter Controls */}
+          <div className="flex flex-wrap gap-2">
+            {/* Category Filter */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={`h-9 gap-2 ${
+                    selectedCategory !== "all"
+                      ? "bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100"
+                      : ""
+                  }`}>
+                  <span className="text-xs font-medium">Category</span>
+                  {selectedCategory !== "all" && (
+                    <Badge variant="secondary" className="px-1.5 py-0 text-xs">
+                      {selectedCategory}
+                    </Badge>
+                  )}
+                  <ChevronDown className="h-3.5 w-3.5 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48">
+                <DropdownMenuLabel>Select Category</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setSelectedCategory("all")}
+                  className={selectedCategory === "all" ? "bg-blue-50" : ""}>
+                  All Categories
+                  {selectedCategory === "all" && (
+                    <span className="ml-auto">✓</span>
+                  )}
+                </DropdownMenuItem>
+                {categories.map((category) => (
+                  <DropdownMenuItem
+                    key={category}
+                    onClick={() => setSelectedCategory(category)}
+                    className={
+                      selectedCategory === category ? "bg-blue-50" : ""
+                    }>
+                    {category}
+                    {selectedCategory === category && (
+                      <span className="ml-auto">✓</span>
+                    )}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-          {/* Status Filter */}
-          <select
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-            <option value="all">All Status</option>
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-            <option value="Discount">Discount</option>
-          </select>
+            {/* Status Filter */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={`h-9 gap-2 ${
+                    selectedStatus !== "all"
+                      ? "bg-green-50 border-green-300 text-green-700 hover:bg-green-100"
+                      : ""
+                  }`}>
+                  <span className="text-xs font-medium">Status</span>
+                  {selectedStatus !== "all" && (
+                    <Badge variant="secondary" className="px-1.5 py-0 text-xs">
+                      {selectedStatus}
+                    </Badge>
+                  )}
+                  <ChevronDown className="h-3.5 w-3.5 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-44">
+                <DropdownMenuLabel>Select Status</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setSelectedStatus("all")}
+                  className={selectedStatus === "all" ? "bg-green-50" : ""}>
+                  All Status
+                  {selectedStatus === "all" && (
+                    <span className="ml-auto">✓</span>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setSelectedStatus("Active")}
+                  className={selectedStatus === "Active" ? "bg-green-50" : ""}>
+                  <Badge
+                    variant="outline"
+                    className="mr-2 h-5 rounded-full border-green-200 bg-green-50 text-green-700">
+                    Active
+                  </Badge>
+                  {selectedStatus === "Active" && (
+                    <span className="ml-auto">✓</span>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setSelectedStatus("Inactive")}
+                  className={
+                    selectedStatus === "Inactive" ? "bg-green-50" : ""
+                  }>
+                  <Badge
+                    variant="outline"
+                    className="mr-2 h-5 rounded-full border-gray-200 bg-gray-50 text-gray-700">
+                    Inactive
+                  </Badge>
+                  {selectedStatus === "Inactive" && (
+                    <span className="ml-auto">✓</span>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setSelectedStatus("Discount")}
+                  className={
+                    selectedStatus === "Discount" ? "bg-green-50" : ""
+                  }>
+                  <Badge
+                    variant="outline"
+                    className="mr-2 h-5 rounded-full border-orange-200 bg-orange-50 text-orange-700">
+                    Discount
+                  </Badge>
+                  {selectedStatus === "Discount" && (
+                    <span className="ml-auto">✓</span>
+                  )}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-          {/* Stock Level Filter */}
-          <select
-            value={stockFilter}
-            onChange={(e) => setStockFilter(e.target.value)}
-            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-            <option value="all">All Stock Levels</option>
-            <option value="in-stock">In Stock</option>
-            <option value="low">Low Stock</option>
-            <option value="out">Out of Stock</option>
-          </select>
+            {/* Stock Level Filter */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={`h-9 gap-2 ${
+                    stockFilter !== "all"
+                      ? "bg-purple-50 border-purple-300 text-purple-700 hover:bg-purple-100"
+                      : ""
+                  }`}>
+                  <span className="text-xs font-medium">Stock</span>
+                  {stockFilter !== "all" && (
+                    <Badge variant="secondary" className="px-1.5 py-0 text-xs">
+                      {stockFilter === "in-stock"
+                        ? "In Stock"
+                        : stockFilter === "low"
+                          ? "Low"
+                          : "Out"}
+                    </Badge>
+                  )}
+                  <ChevronDown className="h-3.5 w-3.5 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-44">
+                <DropdownMenuLabel>Select Stock Level</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setStockFilter("all")}
+                  className={stockFilter === "all" ? "bg-purple-50" : ""}>
+                  All Stock Levels
+                  {stockFilter === "all" && <span className="ml-auto">✓</span>}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setStockFilter("in-stock")}
+                  className={stockFilter === "in-stock" ? "bg-purple-50" : ""}>
+                  <Badge
+                    variant="outline"
+                    className="mr-2 h-5 rounded-full border-green-200 bg-green-50 text-green-700">
+                    In Stock
+                  </Badge>
+                  {stockFilter === "in-stock" && (
+                    <span className="ml-auto">✓</span>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setStockFilter("low")}
+                  className={stockFilter === "low" ? "bg-purple-50" : ""}>
+                  <Badge
+                    variant="outline"
+                    className="mr-2 h-5 rounded-full border-yellow-200 bg-yellow-50 text-yellow-700">
+                    Low Stock
+                  </Badge>
+                  {stockFilter === "low" && <span className="ml-auto">✓</span>}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setStockFilter("out")}
+                  className={stockFilter === "out" ? "bg-purple-50" : ""}>
+                  <Badge
+                    variant="outline"
+                    className="mr-2 h-5 rounded-full border-red-200 bg-red-50 text-red-700">
+                    Out of Stock
+                  </Badge>
+                  {stockFilter === "out" && <span className="ml-auto">✓</span>}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-          {/* Clear Filters Button */}
-          {hasActiveFilters && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={clearFilters}
-              className="h-9 px-3 text-sm">
-              <X className="h-4 w-4 mr-1" />
-              Clear Filters
-            </Button>
-          )}
-
-          {/* Results Count */}
-          <span className="ml-auto text-sm text-muted-foreground">
-            Showing {filteredItems.length} of {items.length} items
-          </span>
+            {/* Clear Filters Button */}
+            {hasActiveFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="h-9 px-3 text-sm">
+                <X className="h-4 w-4 mr-1" />
+                Clear Filters
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -320,6 +479,16 @@ export function InventoryTable({ items, onUpdate }: InventoryTableProps) {
                           Edit
                         </Button>
                         <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-green-700 border-green-200 hover:bg-green-50"
+                          onClick={() => {
+                            setSelectedItemForStock(item);
+                            setIsAddStockDialogOpen(true);
+                          }}>
+                          Add Stock
+                        </Button>
+                        <Button
                           variant="destructive"
                           size="sm"
                           onClick={async () => {
@@ -347,6 +516,19 @@ export function InventoryTable({ items, onUpdate }: InventoryTableProps) {
           </TableBody>
         </Table>
       </div>
+
+      {selectedItemForStock && (
+        <AddStockDialogControlled
+          item={selectedItemForStock}
+          open={isAddStockDialogOpen}
+          onOpenChange={setIsAddStockDialogOpen}
+          onSuccess={() => {
+            setIsAddStockDialogOpen(false);
+            setSelectedItemForStock(null);
+            onUpdate();
+          }}
+        />
+      )}
     </div>
   );
 }

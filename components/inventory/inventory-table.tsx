@@ -14,8 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, X, ChevronDown, Plus } from "lucide-react";
-import { ImageSearchDialog } from "./image-search";
+import { Search, Filter, X, ChevronDown, Plus, ImageIcon } from "lucide-react";
 import { AddStockDialogControlled } from "./add-stock-dialog-controlled";
 import {
   DropdownMenu,
@@ -113,7 +112,13 @@ export function InventoryTable({ items, onUpdate }: InventoryTableProps) {
           </div>
           {canWrite() && (
             <div className="flex gap-2">
-              <ImageSearchDialog />
+              <Button
+                variant="outline"
+                onClick={() => router.push("/inventory/search")}
+                className="gap-2">
+                <ImageIcon className="h-4 w-4" />
+                Search by Image
+              </Button>
               <Button
                 onClick={() => router.push("/inventory/add")}
                 className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap">
@@ -235,11 +240,11 @@ export function InventoryTable({ items, onUpdate }: InventoryTableProps) {
                 <DropdownMenuItem
                   onClick={() => setSelectedStatus("Inactive")}
                   className={
-                    selectedStatus === "Inactive" ? "bg-green-50" : ""
+                    selectedStatus === "Inactive" ? "bg-yellow-50" : ""
                   }>
                   <Badge
                     variant="outline"
-                    className="mr-2 h-5 rounded-full border-gray-200 bg-gray-50 text-gray-700">
+                    className="mr-2 h-5 rounded-full border-yellow-200 bg-yellow-50 text-yellow-700">
                     Inactive
                   </Badge>
                   {selectedStatus === "Inactive" && (
@@ -248,12 +253,10 @@ export function InventoryTable({ items, onUpdate }: InventoryTableProps) {
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => setSelectedStatus("Discount")}
-                  className={
-                    selectedStatus === "Discount" ? "bg-green-50" : ""
-                  }>
+                  className={selectedStatus === "Discount" ? "bg-red-50" : ""}>
                   <Badge
                     variant="outline"
-                    className="mr-2 h-5 rounded-full border-orange-200 bg-orange-50 text-orange-700">
+                    className="mr-2 h-5 rounded-full border-red-200 bg-red-50 text-red-700">
                     Discount
                   </Badge>
                   {selectedStatus === "Discount" && (
@@ -481,7 +484,7 @@ export function InventoryTable({ items, onUpdate }: InventoryTableProps) {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="text-green-700 border-green-200 hover:bg-green-50"
+                          className="text-blue-700 border-blue-200 hover:bg-blue-50"
                           onClick={() => {
                             setSelectedItemForStock(item);
                             setIsAddStockDialogOpen(true);

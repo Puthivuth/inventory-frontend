@@ -129,10 +129,10 @@ export function AddStockDialogControlled({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto border-blue-200">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Add Stock</DialogTitle>
+            <DialogTitle className="text-blue-700">Add Stock</DialogTitle>
             <DialogDescription>
               Add stock quantity for <strong>{item.name}</strong>
             </DialogDescription>
@@ -188,7 +188,10 @@ export function AddStockDialogControlled({
               disabled={isLoading}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading}>
+            <Button
+              type="submit"
+              disabled={isLoading}
+              className="bg-blue-600 hover:bg-blue-700 text-white">
               {isLoading ? "Adding..." : "Add Stock"}
             </Button>
           </DialogFooter>

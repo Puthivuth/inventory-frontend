@@ -1,72 +1,92 @@
-"use client"
+"use client";
 
-import { useState, useRef } from "react"
-import { useImageSearch } from "@/hooks/use-image-search"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { AlertCircle, Image as ImageIcon, Search, Upload, Loader2 } from "lucide-react"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import Image from "next/image"
-import Link from "next/link"
+import { useState, useRef } from "react";
+import { useImageSearch } from "@/hooks/use-image-search";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertCircle,
+  Image as ImageIcon,
+  Search,
+  Upload,
+  Loader2,
+} from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import Image from "next/image";
+import Link from "next/link";
 
 interface ImageSearchDialogProps {
-  onProductSelect?: (productId: number) => void
+  onProductSelect?: (productId: number) => void;
 }
 
 export function ImageSearchDialog({ onProductSelect }: ImageSearchDialogProps) {
-  const [open, setOpen] = useState(false)
-  const [imageUrl, setImageUrl] = useState("")
-  const [previewImage, setPreviewImage] = useState<string | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const [topK, setTopK] = useState(10)
-  const [scoreThreshold, setScoreThreshold] = useState(0.5)
+  const [open, setOpen] = useState(false);
+  const [imageUrl, setImageUrl] = useState("");
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [topK, setTopK] = useState(10);
+  const [scoreThreshold, setScoreThreshold] = useState(0.3); // Lower default for better results
 
-  const { 
-    isLoading, 
-    error, 
-    results, 
-    hasSearched, 
-    searchByImage, 
-    searchByUrl, 
-    clearResults 
-  } = useImageSearch()
+  const {
+    isLoading,
+    error,
+    results,
+    hasSearched,
+    searchByImage,
+    searchByUrl,
+    clearResults,
+  } = useImageSearch();
 
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
+  const handleFileSelect = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
     // Preview image
-    const reader = new FileReader()
+    const reader = new FileReader();
     reader.onload = (e) => {
-      setPreviewImage(e.target?.result as string)
-    }
-    reader.readAsDataURL(file)
+      setPreviewImage(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
 
     // Search
-    await searchByImage(file, topK, scoreThreshold)
-  }
+    await searchByImage(file, topK, scoreThreshold);
+  };
 
   const handleUrlSearch = async () => {
     if (!imageUrl.trim()) {
-      alert("Please enter an image URL")
-      return
+      alert("Please enter an image URL");
+      return;
     }
-    setPreviewImage(imageUrl)
-    await searchByUrl(imageUrl, topK, scoreThreshold)
-  }
+    setPreviewImage(imageUrl);
+    await searchByUrl(imageUrl, topK, scoreThreshold);
+  };
 
   const handleReset = () => {
-    clearResults()
-    setImageUrl("")
-    setPreviewImage(null)
+    clearResults();
+    setImageUrl("");
+    setPreviewImage(null);
     if (fileInputRef.current) {
-      fileInputRef.current.value = ""
+      fileInputRef.current.value = "";
     }
-  }
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -100,8 +120,7 @@ export function ImageSearchDialog({ onProductSelect }: ImageSearchDialogProps) {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full flex flex-col items-center gap-2"
-              >
+                className="w-full flex flex-col items-center gap-2">
                 <Upload className="h-8 w-8 text-muted-foreground" />
                 <span className="font-medium">Click to upload an image</span>
                 <span className="text-sm text-muted-foreground">
@@ -120,11 +139,10 @@ export function ImageSearchDialog({ onProductSelect }: ImageSearchDialogProps) {
                 value={imageUrl}
                 onChange={(e) => setImageUrl(e.target.value)}
               />
-              <Button 
-                onClick={handleUrlSearch} 
+              <Button
+                onClick={handleUrlSearch}
                 disabled={isLoading || !imageUrl.trim()}
-                className="w-full"
-              >
+                className="w-full">
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -159,9 +177,7 @@ export function ImageSearchDialog({ onProductSelect }: ImageSearchDialogProps) {
         {/* Parameters */}
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">
-              Top Results: {topK}
-            </label>
+            <label className="text-sm font-medium">Top Results: {topK}</label>
             <input
               type="range"
               min="1"
@@ -207,19 +223,18 @@ export function ImageSearchDialog({ onProductSelect }: ImageSearchDialogProps) {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold">
-                Found {results.length} similar product{results.length !== 1 ? "s" : ""}
+                Found {results.length} similar product
+                {results.length !== 1 ? "s" : ""}
               </h3>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={handleReset}
-              >
+              <Button variant="outline" size="sm" onClick={handleReset}>
                 New Search
               </Button>
             </div>
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {results.map((product) => (
-                <Card key={product.product_id} className="cursor-pointer hover:bg-muted transition-colors">
+                <Card
+                  key={product.product_id}
+                  className="cursor-pointer hover:bg-muted transition-colors">
                   <CardContent className="p-4">
                     <div className="flex gap-4">
                       {/* Product Image */}
@@ -267,11 +282,10 @@ export function ImageSearchDialog({ onProductSelect }: ImageSearchDialogProps) {
                           className="mt-2 w-full"
                           onClick={() => {
                             if (onProductSelect) {
-                              onProductSelect(product.product_id)
+                              onProductSelect(product.product_id);
                             }
-                            setOpen(false)
-                          }}
-                        >
+                            setOpen(false);
+                          }}>
                           Select Product
                         </Button>
                       </div>
@@ -288,7 +302,8 @@ export function ImageSearchDialog({ onProductSelect }: ImageSearchDialogProps) {
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              No similar products found. Try adjusting the score threshold or using a different image.
+              No similar products found. Try adjusting the score threshold or
+              using a different image.
             </AlertDescription>
           </Alert>
         )}
@@ -298,11 +313,12 @@ export function ImageSearchDialog({ onProductSelect }: ImageSearchDialogProps) {
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              Upload an image or enter a URL to search for similar products in the inventory.
+              Upload an image or enter a URL to search for similar products in
+              the inventory.
             </AlertDescription>
           </Alert>
         )}
       </DialogContent>
     </Dialog>
-  )
+  );
 }

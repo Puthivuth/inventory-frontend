@@ -1,5 +1,11 @@
 import { useState, useCallback } from "react";
 
+export interface Detection {
+  box: number[];
+  label: string;
+  confidence: number;
+}
+
 interface SearchResult {
   product_id: number;
   product_name: string;
@@ -16,10 +22,12 @@ interface UseImageSearchResult {
   error: string | null;
   results: SearchResult[];
   hasSearched: boolean;
+  detectObjects: (file: File) => Promise<Detection[]>;
   searchByImage: (
     file: File,
     topK?: number,
     scoreThreshold?: number,
+    box?: number[]
   ) => Promise<void>;
   searchByUrl: (
     imageUrl: string,
@@ -53,8 +61,45 @@ export const useImageSearch = (): UseImageSearchResult => {
     setHasSearched(false);
   }, []);
 
+  const detectObjects = useCallback(async (file: File): Promise<Detection[]> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const token = localStorage.getItem("token");
+      const backendUrl = getBackendUrl();
+      const apiUrl = backendUrl.includes("/api")
+        ? `${backendUrl}/detect-objects/`
+        : `${backendUrl}/api/detect-objects/`;
+
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Token ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(errorData || "Detection failed");
+      }
+
+      const data = await response.json();
+      return data.detections || [];
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Detection failed";
+      setError(errorMessage);
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   const searchByImage = useCallback(
-    async (file: File, topK: number = 10, scoreThreshold: number = 0.5) => {
+    async (file: File, topK: number = 10, scoreThreshold: number = 0.5, box?: number[]) => {
       setIsLoading(true);
       setError(null);
       setHasSearched(true);
@@ -64,6 +109,10 @@ export const useImageSearch = (): UseImageSearchResult => {
         formData.append("file", file);
         formData.append("top_k", topK.toString());
         formData.append("score_threshold", scoreThreshold.toString());
+        
+        if (box) {
+          formData.append("box", JSON.stringify(box));
+        }
 
         const token = localStorage.getItem("token");
         const backendUrl = getBackendUrl();
@@ -152,6 +201,7 @@ export const useImageSearch = (): UseImageSearchResult => {
     error,
     results,
     hasSearched,
+    detectObjects,
     searchByImage,
     searchByUrl,
     clearResults,

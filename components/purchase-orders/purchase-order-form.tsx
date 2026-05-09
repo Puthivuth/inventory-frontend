@@ -583,6 +583,7 @@ export function PurchaseOrderForm({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="Pending">Pending</SelectItem>
+                <SelectItem value="Paid">Paid</SelectItem>
               </SelectContent>
             </Select>
           </div>

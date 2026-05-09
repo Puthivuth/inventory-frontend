@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import type { InventoryItem } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -423,11 +424,11 @@ export function InventoryTable({ items, onUpdate }: InventoryTableProps) {
                     </div>
                   </TableCell>
                   <TableCell className="font-mono text-base py-2">
-                    <span
-                      className="cursor-pointer hover:underline"
-                      onClick={() => handleEdit(item)}>
+                    <Link
+                      href={`/inventory/${item.id}`}
+                      className="cursor-pointer hover:underline">
                       {item.sku}
-                    </span>
+                    </Link>
                   </TableCell>
                   <TableCell className="py-2">
                     <Badge variant="secondary" className="text-sm px-3 py-1">

@@ -53,5 +53,5 @@ jobs:
           docker run -d \
             --name frontend \
             -p 3001:3001 \
-            --env-file /home/vuth/inventory-frontend/.env.local \
+            --env-file /home/vuth/inventory/.env.local \
             ${{ secrets.DOCKER_USERNAME }}/inventory-frontend:latest

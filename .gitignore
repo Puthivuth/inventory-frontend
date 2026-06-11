@@ -2,9 +2,6 @@
 /node_modules
 /.pnp
 .pnp.js
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
 
 # Testing
 /coverage
@@ -37,9 +34,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Documentation (local only)
-FRONTEND_STRUCTURE.md
+# Documentation
+# FRONTEND_STRUCTURE.md
 
 *.log
-.next
-.env

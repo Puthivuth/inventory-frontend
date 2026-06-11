@@ -23,6 +23,7 @@ export interface InventoryItem {
   userId?: string;
   createdAt: string;
   updatedAt: string;
+  sold?: number;
 }
 
 export type InventoryFormData = Omit<
@@ -75,6 +76,8 @@ export interface Supplier {
   email?: string;
   phone?: string;
   address?: string;
+  district?: string;
+  subcategories?: string[]; // Sub-categories of products this supplier supplies
   notes?: string;
   lastTransactionDate?: string;
   createdAt: string;
@@ -105,4 +108,32 @@ export interface PurchaseOrder {
   createdAt: string;
   updatedAt: string;
   userId?: string;
+}
+
+export interface ProductAssociation {
+  associationId: number;
+  product1: number;
+  product1Id: number;
+  product1Name: string;
+  product1Image: string | null;
+  product2: number;
+  product2Id: number;
+  product2Name: string;
+  product2Image: string | null;
+  frequency: number;
+  associationPercentage: number;
+  totalProduct1Purchases: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RelatedProduct {
+  productId: number;
+  productName: string;
+  description: string;
+  image: string | null;
+  skuCode: string;
+  salePrice: string;
+  associationPercentage: number;
+  frequency: number;
 }

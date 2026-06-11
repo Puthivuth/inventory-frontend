@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -54,6 +55,7 @@ export function InvoiceGenerator({ invoice, onClose }: InvoiceGeneratorProps) {
   const printRef = useRef<HTMLDivElement>(null);
   const qrRef = useRef<HTMLDivElement>(null);
   const qrCode = useRef<QRCodeStyling | null>(null);
+  const isPending = invoice.status?.toLowerCase() === "pending";
 
   // Initialize QR Code
   useEffect(() => {
@@ -82,10 +84,10 @@ export function InvoiceGenerator({ invoice, onClose }: InvoiceGeneratorProps) {
     fetchUserProfile();
 
     // Generate KHQR if payment method is 'KHQR'
-    if (invoice.paymentMethod === "KHQR" && invoice.status !== "paid") {
+    if (invoice.paymentMethod === "KHQR" && isPending) {
       generateKHQR();
     }
-  }, [invoice.id, invoice.paymentMethod, invoice.status]);
+  }, [invoice.invoiceId, invoice.paymentMethod, invoice.status, isPending]);
 
   // Update QR code when KHQR data changes
   useEffect(() => {
@@ -102,20 +104,20 @@ export function InvoiceGenerator({ invoice, onClose }: InvoiceGeneratorProps) {
     if (!invoice.invoiceId) return;
     console.log(
       "[Invoice Generator] Generating KHQR for invoice:",
-      invoice.invoiceId
+      invoice.invoiceId,
     );
     setLoadingQR(true);
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
-        `http://localhost:8000/api/invoices/${invoice.invoiceId}/generate_khqr/`,
+        `${process.env.NEXT_PUBLIC_API_URL}/invoices/${invoice.invoiceId}/generate_khqr/`,
         {
           method: "POST",
           headers: {
             Authorization: `Token ${token}`,
             "Content-Type": "application/json",
           },
-        }
+        },
       );
 
       if (response.ok) {
@@ -123,9 +125,11 @@ export function InvoiceGenerator({ invoice, onClose }: InvoiceGeneratorProps) {
         console.log("[Invoice Generator] KHQR data received:", data);
         setKhqrData(data);
       } else {
+        const errorText = await response.text();
         console.error(
           "[Invoice Generator] KHQR generation failed:",
-          response.status
+          response.status,
+          errorText,
         );
       }
     } catch (error) {
@@ -138,12 +142,9 @@ export function InvoiceGenerator({ invoice, onClose }: InvoiceGeneratorProps) {
   const fetchUserProfile = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(
-        "http://localhost:8000/api/user-profiles/",
-        {
-          headers: { Authorization: `Token ${token}` },
-        }
-      );
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/user-profiles/`, {
+        headers: { Authorization: `Token ${token}` },
+      });
       if (response.ok) {
         const profiles = await response.json();
         if (profiles.length > 0) {
@@ -272,6 +273,10 @@ export function InvoiceGenerator({ invoice, onClose }: InvoiceGeneratorProps) {
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Invoice Preview</DialogTitle>
+          <DialogDescription>
+            Review the invoice details and scan the payment QR code if this
+            invoice uses KHQR.
+          </DialogDescription>
         </DialogHeader>
 
         <div ref={printRef} className="p-8 bg-white">
@@ -370,7 +375,7 @@ export function InvoiceGenerator({ invoice, onClose }: InvoiceGeneratorProps) {
           )}
 
           {/* Dynamic KHQR QR Code for KHQR payments */}
-          {invoice.paymentMethod === "KHQR" && invoice.status !== "paid" && (
+          {invoice.paymentMethod === "KHQR" && isPending && (
             <div className="qr-section mt-12 clear-both text-center pt-8 border-t">
               <p className="text-sm mb-2 font-medium">Scan to Pay with KHQR:</p>
               <p className="text-lg font-bold mb-4">
@@ -405,7 +410,7 @@ export function InvoiceGenerator({ invoice, onClose }: InvoiceGeneratorProps) {
               <img
                 src={qrCodeUrl}
                 alt="Payment QR Code"
-                className="mx-auto max-w-[200px] max-h-[200px]"
+                className="mx-auto max-w-50 max-h-50"
               />
             </div>
           )}

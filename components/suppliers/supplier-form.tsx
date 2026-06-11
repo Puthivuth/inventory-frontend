@@ -1,29 +1,39 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState, useEffect } from "react"
-import type { Supplier } from "@/types"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import { useState, useEffect } from "react";
+import type { Supplier } from "@/types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 interface SupplierFormProps {
-  supplier?: Supplier | null
-  onSubmit: (data: Omit<Supplier, "id" | "createdAt" | "updatedAt" | "userId" | "lastTransactionDate">) => void
-  onCancel: () => void
+  supplier?: Supplier | null;
+  onSubmit: (
+    data: Omit<
+      Supplier,
+      "id" | "createdAt" | "updatedAt" | "userId" | "lastTransactionDate"
+    >,
+  ) => void;
+  onCancel: () => void;
 }
 
-export function SupplierForm({ supplier, onSubmit, onCancel }: SupplierFormProps) {
+export function SupplierForm({
+  supplier,
+  onSubmit,
+  onCancel,
+}: SupplierFormProps) {
   const [formData, setFormData] = useState({
     name: "",
     contactPerson: "",
     email: "",
     phone: "",
     address: "",
+    district: "",
     notes: "",
-  })
+  });
 
   useEffect(() => {
     if (supplier) {
@@ -33,22 +43,24 @@ export function SupplierForm({ supplier, onSubmit, onCancel }: SupplierFormProps
         email: supplier.email || "",
         phone: supplier.phone || "",
         address: supplier.address || "",
+        district: supplier.district || "",
         notes: supplier.notes || "",
-      })
+      });
     }
-  }, [supplier])
+  }, [supplier]);
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     onSubmit({
       name: formData.name,
       contactPerson: formData.contactPerson || undefined,
       email: formData.email || undefined,
       phone: formData.phone || undefined,
       address: formData.address || undefined,
+      district: formData.district || undefined,
       notes: formData.notes || undefined,
-    })
-  }
+    });
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -69,7 +81,9 @@ export function SupplierForm({ supplier, onSubmit, onCancel }: SupplierFormProps
           <Input
             id="contactPerson"
             value={formData.contactPerson}
-            onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, contactPerson: e.target.value })
+            }
             placeholder="e.g., John Doe"
           />
         </div>
@@ -79,7 +93,9 @@ export function SupplierForm({ supplier, onSubmit, onCancel }: SupplierFormProps
             id="phone"
             type="tel"
             value={formData.phone}
-            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, phone: e.target.value })
+            }
             placeholder="e.g., +1 234 567 8900"
           />
         </div>
@@ -101,9 +117,23 @@ export function SupplierForm({ supplier, onSubmit, onCancel }: SupplierFormProps
         <Textarea
           id="address"
           value={formData.address}
-          onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+          onChange={(e) =>
+            setFormData({ ...formData, address: e.target.value })
+          }
           placeholder="Full address including city, state, and postal code"
           rows={3}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="district">District</Label>
+        <Input
+          id="district"
+          value={formData.district}
+          onChange={(e) =>
+            setFormData({ ...formData, district: e.target.value })
+          }
+          placeholder="e.g., Phnom Penh, Siem Reap, Kandal"
         />
       </div>
 
@@ -127,5 +157,5 @@ export function SupplierForm({ supplier, onSubmit, onCancel }: SupplierFormProps
         </Button>
       </div>
     </form>
-  )
+  );
 }

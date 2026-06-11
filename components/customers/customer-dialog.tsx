@@ -73,8 +73,8 @@ export function CustomerDialog({
     try {
       const token = localStorage.getItem("token");
       const url = customer
-        ? `http://localhost:8000/api/customers/${customer.customerId}/`
-        : "http://localhost:8000/api/customers/";
+        ? `${process.env.NEXT_PUBLIC_API_URL}/customers/${customer.customerId}/`
+        : `${process.env.NEXT_PUBLIC_API_URL}/customers/`;
 
       const method = customer ? "PUT" : "POST";
 

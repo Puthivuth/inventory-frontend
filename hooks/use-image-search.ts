@@ -1,4 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback } from "react";
+
+export interface Detection {
+  box: number[];
+  label: string;
+  confidence: number;
+}
 
 interface SearchResult {
   product_id: number;
@@ -16,10 +22,25 @@ interface UseImageSearchResult {
   error: string | null;
   results: SearchResult[];
   hasSearched: boolean;
-  searchByImage: (file: File, topK?: number, scoreThreshold?: number) => Promise<void>;
-  searchByUrl: (imageUrl: string, topK?: number, scoreThreshold?: number) => Promise<void>;
+  detectObjects: (file: File) => Promise<Detection[]>;
+  searchByImage: (
+    file: File,
+    topK?: number,
+    scoreThreshold?: number,
+    box?: number[]
+  ) => Promise<void>;
+  searchByUrl: (
+    imageUrl: string,
+    topK?: number,
+    scoreThreshold?: number,
+  ) => Promise<void>;
   clearResults: () => void;
 }
+
+// Get backend API URL
+const getBackendUrl = () => {
+  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+};
 
 export const useImageSearch = (): UseImageSearchResult => {
   const [isLoading, setIsLoading] = useState(false);
@@ -33,47 +54,98 @@ export const useImageSearch = (): UseImageSearchResult => {
     setHasSearched(false);
   }, []);
 
+  const detectObjects = useCallback(async (file: File): Promise<Detection[]> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const token = localStorage.getItem("token");
+      const backendUrl = getBackendUrl();
+      const apiUrl = backendUrl.includes("/api")
+        ? `${backendUrl}/detect-objects/`
+        : `${backendUrl}/api/detect-objects/`;
+
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Token ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(errorData || "Detection failed");
+      }
+
+      const data = await response.json();
+      return data.detections || [];
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Detection failed";
+      setError(errorMessage);
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   const searchByImage = useCallback(
-    async (file: File, topK: number = 10, scoreThreshold: number = 0.5) => {
+    async (file: File, topK: number = 10, scoreThreshold: number = 0.5, box?: number[]) => {
       setIsLoading(true);
       setError(null);
       setHasSearched(true);
 
       try {
         const formData = new FormData();
-        formData.append('file', file);
-        formData.append('top_k', topK.toString());
-        formData.append('score_threshold', scoreThreshold.toString());
+        formData.append("file", file);
+        formData.append("top_k", topK.toString());
+        formData.append("score_threshold", scoreThreshold.toString());
+        
+        if (box) {
+          formData.append("box", JSON.stringify(box));
+        }
 
-        const token = localStorage.getItem('token');
-        const response = await fetch('/api/search-products/', {
-          method: 'POST',
+        const token = localStorage.getItem("token");
+        const backendUrl = getBackendUrl();
+        const apiUrl = backendUrl.includes("/api")
+          ? `${backendUrl}/search-products/`
+          : `${backendUrl}/api/search-products/`;
+
+        const response = await fetch(apiUrl, {
+          method: "POST",
           headers: {
-            'Authorization': `Token ${token}`,
+            Authorization: `Token ${token}`,
           },
           body: formData,
         });
 
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Search failed');
+          const errorData = await response.text();
+          throw new Error(errorData || "Search failed");
         }
 
         const data = await response.json();
         setResults(data.results || []);
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+        const errorMessage =
+          err instanceof Error ? err.message : "An error occurred";
         setError(errorMessage);
         setResults([]);
       } finally {
         setIsLoading(false);
       }
     },
-    []
+    [],
   );
 
   const searchByUrl = useCallback(
-    async (imageUrl: string, topK: number = 10, scoreThreshold: number = 0.5) => {
+    async (
+      imageUrl: string,
+      topK: number = 10,
+      scoreThreshold: number = 0.5,
+    ) => {
       setIsLoading(true);
       setError(null);
       setHasSearched(true);
@@ -85,30 +157,36 @@ export const useImageSearch = (): UseImageSearchResult => {
           score_threshold: scoreThreshold.toString(),
         });
 
-        const token = localStorage.getItem('token');
-        const response = await fetch(`/api/search-products-url/?${params}`, {
-          method: 'GET',
+        const token = localStorage.getItem("token");
+        const backendUrl = getBackendUrl();
+        const apiUrl = backendUrl.includes("/api")
+          ? `${backendUrl}/search-products-url/?${params}`
+          : `${backendUrl}/api/search-products-url/?${params}`;
+
+        const response = await fetch(apiUrl, {
+          method: "GET",
           headers: {
-            'Authorization': `Token ${token}`,
+            Authorization: `Token ${token}`,
           },
         });
 
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Search failed');
+          const errorData = await response.text();
+          throw new Error(errorData || "Search failed");
         }
 
         const data = await response.json();
         setResults(data.results || []);
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+        const errorMessage =
+          err instanceof Error ? err.message : "An error occurred";
         setError(errorMessage);
         setResults([]);
       } finally {
         setIsLoading(false);
       }
     },
-    []
+    [],
   );
 
   return {
@@ -116,6 +194,7 @@ export const useImageSearch = (): UseImageSearchResult => {
     error,
     results,
     hasSearched,
+    detectObjects,
     searchByImage,
     searchByUrl,
     clearResults,

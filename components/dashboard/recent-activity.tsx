@@ -14,14 +14,22 @@ interface RecentActivity {
   status?: string
 }
 
-export function RecentActivityFeed() {
+import type { InventoryItem } from "@/types"
+
+interface RecentActivityFeedProps {
+  invoices?: any[]
+  items?: InventoryItem[]
+}
+
+export function RecentActivityFeed({ invoices: propInvoices, items: propItems }: RecentActivityFeedProps = {}) {
   const [activities, setActivities] = useState<RecentActivity[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const loadActivities = async () => {
       try {
-        const [invoices, items] = await Promise.all([getInvoices(), getInventoryItems()])
+        const invoices = propInvoices || await getInvoices()
+        const items = propItems || await getInventoryItems()
 
         const recentActivities: RecentActivity[] = []
 
@@ -68,7 +76,7 @@ export function RecentActivityFeed() {
     }
 
     loadActivities()
-  }, [])
+  }, [propInvoices, propItems])
 
   const getTimeAgo = (date: Date) => {
     const now = new Date()

@@ -67,7 +67,7 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
       try {
         const token = localStorage.getItem('token')
         const response = await fetch(
-          `http://localhost:8000/api/invoices/${invoice.invoiceId}/generate_khqr/`,
+          `${process.env.NEXT_PUBLIC_API_URL}/invoices/${invoice.invoiceId}/generate_khqr/`,
           {
             method: 'POST',
             headers: {
@@ -113,7 +113,7 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
         const token = localStorage.getItem('token')
         console.log('[Invoice Preview] Making API call to check payment...')
         const response = await fetch(
-          `http://localhost:8000/api/invoices/${invoice.invoiceId}/check_payment/`,
+          `${process.env.NEXT_PUBLIC_API_URL}/invoices/${invoice.invoiceId}/check_payment/`,
           {
             method: 'POST',
             headers: {
@@ -417,6 +417,19 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
               }}>
                 <span style={{ fontSize: "0.875rem" }}>Generating QR Code...</span>
               </div>
+            ) : khqrData?.qr_image ? (
+              <img
+                src={khqrData.qr_image}
+                alt="KHQR Payment"
+                style={{ 
+                  display: "block",
+                  margin: "0 auto",
+                  maxWidth: "300px", 
+                  height: "auto", 
+                  borderRadius: "0.5rem",
+                  boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)"
+                }}
+              />
             ) : khqrData ? (
               <div 
                 ref={qrRef} 

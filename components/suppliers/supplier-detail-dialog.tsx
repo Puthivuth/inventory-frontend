@@ -64,7 +64,7 @@ export function SupplierDetailDialog({ supplier, open, onOpenChange }: SupplierD
     setLoading(true)
     try {
       const token = localStorage.getItem("token")
-      const response = await fetch("http://localhost:8000/api/products/", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/products/?source=${supplier.id}`, {
         headers: {
           Authorization: `Token ${token}`,
           "Content-Type": "application/json",
@@ -72,7 +72,7 @@ export function SupplierDetailDialog({ supplier, open, onOpenChange }: SupplierD
       })
 
       if (response.ok) {
-        const allProducts = await response.json()
+        const supplierProductsFromApi = await response.json()
         
         // Create a map for inventory items for quick lookup by product name
         const inventoryMap = new Map<string, InventoryItem>();
@@ -80,8 +80,7 @@ export function SupplierDetailDialog({ supplier, open, onOpenChange }: SupplierD
           inventoryMap.set(item.name.toLowerCase(), item);
         });
 
-        const supplierProducts = allProducts
-          .filter((product: any) => product.source?.toString() === supplier.id)
+        const supplierProducts = supplierProductsFromApi
           .map((product: any) => {
             let costPrice = parseFloat(product.costPrice);
             let discount = parseFloat(product.discount);

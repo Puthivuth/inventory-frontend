@@ -16,15 +16,23 @@ import {
   Filter,
   X,
   Plus,
-  Trash2,
-  CheckCircle,
-  FileText,
   RefreshCw,
-  XCircle,
+  AlertCircle,
+  FileText,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { PurchaseOrderDialog } from "./purchase-order-dialog";
 import { InvoiceGenerator } from "./invoice-generator";
+import { KHQRPaymentDialog } from "@/components/invoice/khqr-payment-dialog";
 import { getInvoices } from "@/lib/api";
 import { canWrite } from "@/lib/permissions";
 
@@ -46,19 +54,24 @@ interface Invoice {
   khqrMd5?: string | null;
 }
 
-export function PurchaseOrderTable() {
+export function PurchaseOrderTable({
+  onRefresh,
+}: { onRefresh?: () => void } = {}) {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [isInvoiceGeneratorOpen, setIsInvoiceGeneratorOpen] = useState(false);
   const [invoiceToGenerate, setInvoiceToGenerate] = useState<Invoice | null>(
-    null
+    null,
   );
+  const [isKhqrPaymentOpen, setIsKhqrPaymentOpen] = useState(false);
+  const [invoiceToPay, setInvoiceToPay] = useState<Invoice | null>(null);
   const [checkingPayments, setCheckingPayments] = useState<Set<number>>(
-    new Set()
+    new Set(),
   );
 
   useEffect(() => {
@@ -74,15 +87,21 @@ export function PurchaseOrderTable() {
 
   const fetchInvoices = async () => {
     try {
+      setError(null);
       const data = await getInvoices();
       // Sort by createdAt descending (newest first)
       const sortedData = data.sort(
         (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       );
       setInvoices(sortedData);
     } catch (error) {
       console.error("Error fetching invoices:", error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to load invoices. Make sure you are logged in.";
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -92,7 +111,7 @@ export function PurchaseOrderTable() {
     // Find all pending KHQR invoices with MD5 hash
     const pendingKHQRInvoices = invoices.filter(
       (inv) =>
-        inv.status === "pending" && inv.paymentMethod === "KHQR" && inv.khqrMd5
+        inv.status === "pending" && inv.paymentMethod === "KHQR" && inv.khqrMd5,
     );
 
     if (pendingKHQRInvoices.length === 0) {
@@ -117,14 +136,14 @@ export function PurchaseOrderTable() {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
-        `http://localhost:8000/api/invoices/${invoiceId}/check_payment/`,
+        `${process.env.NEXT_PUBLIC_API_URL}/invoices/${invoiceId}/check_payment/`,
         {
           method: "POST",
           headers: {
             Authorization: `Token ${token}`,
             "Content-Type": "application/json",
           },
-        }
+        },
       );
 
       if (response.ok) {
@@ -143,7 +162,7 @@ export function PurchaseOrderTable() {
     } catch (error) {
       console.error(
         `❌ Error checking payment for invoice #${invoiceId}:`,
-        error
+        error,
       );
     } finally {
       setCheckingPayments((prev) => {
@@ -161,7 +180,7 @@ export function PurchaseOrderTable() {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
-        `http://localhost:8000/api/invoices/${invoice.invoiceId}/`,
+        `${process.env.NEXT_PUBLIC_API_URL}/invoices/${invoice.invoiceId}/`,
         {
           method: "PATCH",
           headers: {
@@ -169,7 +188,7 @@ export function PurchaseOrderTable() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ status: "Paid" }),
-        }
+        },
       );
 
       if (response.ok) {
@@ -191,7 +210,7 @@ export function PurchaseOrderTable() {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
-        `http://localhost:8000/api/invoices/${invoice.invoiceId}/`,
+        `${process.env.NEXT_PUBLIC_API_URL}/invoices/${invoice.invoiceId}/`,
         {
           method: "PATCH",
           headers: {
@@ -199,7 +218,7 @@ export function PurchaseOrderTable() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ status: "Cancelled" }),
-        }
+        },
       );
 
       if (response.ok) {
@@ -221,13 +240,13 @@ export function PurchaseOrderTable() {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
-        `http://localhost:8000/api/invoices/${invoiceId}/`,
+        `${process.env.NEXT_PUBLIC_API_URL}/invoices/${invoiceId}/`,
         {
           method: "DELETE",
           headers: {
             Authorization: `Token ${token}`,
           },
-        }
+        },
       );
 
       if (response.ok || response.status === 204) {
@@ -247,12 +266,12 @@ export function PurchaseOrderTable() {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
-        `http://localhost:8000/api/invoices/${invoiceId}/`,
+        `${process.env.NEXT_PUBLIC_API_URL}/invoices/${invoiceId}/`,
         {
           headers: {
             Authorization: `Token ${token}`,
           },
-        }
+        },
       );
 
       if (response.ok) {
@@ -316,6 +335,24 @@ export function PurchaseOrderTable() {
 
   return (
     <div className="space-y-4">
+      {/* Error Alert */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <h3 className="font-semibold text-red-900">Error Loading Orders</h3>
+            <p className="text-sm text-red-800 mt-1">{error}</p>
+            <Button
+              onClick={() => fetchInvoices()}
+              size="sm"
+              className="mt-3 bg-red-600 hover:bg-red-700">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Payment checking notification */}
       {checkingPayments.size > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-2">
@@ -353,39 +390,94 @@ export function PurchaseOrderTable() {
         </div>
 
         {/* Filters Row */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Filter className="h-4 w-4" />
-            <span className="font-medium">Filters:</span>
+        <div className="space-y-3">
+          {/* Filter Header */}
+          <div className="flex items-center gap-2 text-sm">
+            <Filter className="h-4 w-4 text-blue-600" />
+            <span className="font-semibold text-foreground">Filters</span>
+            {hasActiveFilters && (
+              <Badge variant="secondary" className="ml-auto">
+                1 active
+              </Badge>
+            )}
           </div>
 
-          {/* Status Filter */}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-            <option value="all">All Status</option>
-            <option value="Pending">Pending</option>
-            <option value="Paid">Paid</option>
-            <option value="Cancelled">Cancelled</option>
-          </select>
+          {/* Filter Controls */}
+          <div className="flex flex-wrap gap-2">
+            {/* Status Filter */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={`h-9 gap-2 ${
+                    statusFilter !== "all"
+                      ? "bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100"
+                      : ""
+                  }`}>
+                  <span className="text-xs font-medium">Order Status</span>
+                  {statusFilter !== "all" && (
+                    <Badge variant="secondary" className="px-1.5 py-0 text-xs">
+                      {statusFilter}
+                    </Badge>
+                  )}
+                  <ChevronDown className="h-3.5 w-3.5 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-40">
+                <DropdownMenuLabel>Select Status</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setStatusFilter("all")}
+                  className={statusFilter === "all" ? "bg-blue-50" : ""}>
+                  All Status
+                  {statusFilter === "all" && <span className="ml-auto">✓</span>}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setStatusFilter("Pending")}
+                  className={statusFilter === "Pending" ? "bg-blue-50" : ""}>
+                  <Badge className="mr-2 bg-yellow-100 text-yellow-800">
+                    Pending
+                  </Badge>
+                  {statusFilter === "Pending" && (
+                    <span className="ml-auto">✓</span>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setStatusFilter("Paid")}
+                  className={statusFilter === "Paid" ? "bg-blue-50" : ""}>
+                  <Badge className="mr-2 bg-green-100 text-green-800">
+                    Paid
+                  </Badge>
+                  {statusFilter === "Paid" && (
+                    <span className="ml-auto">✓</span>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setStatusFilter("Cancelled")}
+                  className={statusFilter === "Cancelled" ? "bg-blue-50" : ""}>
+                  <Badge className="mr-2 bg-red-100 text-red-800">
+                    Cancelled
+                  </Badge>
+                  {statusFilter === "Cancelled" && (
+                    <span className="ml-auto">✓</span>
+                  )}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-          {/* Clear Filters Button */}
-          {hasActiveFilters && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={clearFilters}
-              className="h-9 px-3 text-sm">
-              <X className="h-4 w-4 mr-1" />
-              Clear Filters
-            </Button>
-          )}
-
-          {/* Results Count */}
-          <span className="ml-auto text-sm text-muted-foreground">
-            Showing {filteredInvoices.length} of {invoices.length} orders
-          </span>
+            {/* Clear Filters Button */}
+            {hasActiveFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="h-9 px-3 text-xs text-red-600 hover:bg-red-50 hover:text-red-700">
+                <X className="h-3.5 w-3.5 mr-1" />
+                Clear All
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -394,31 +486,31 @@ export function PurchaseOrderTable() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="text-xs sm:text-sm min-w-[100px]">
+              <TableHead className="text-xs sm:text-sm min-w-25">
                 Order ID
               </TableHead>
-              <TableHead className="text-xs sm:text-sm min-w-[120px]">
+              <TableHead className="text-xs sm:text-sm min-w-30">
                 Created Date
               </TableHead>
-              <TableHead className="text-xs sm:text-sm min-w-[150px]">
+              <TableHead className="text-xs sm:text-sm min-w-37.5">
                 Customer
               </TableHead>
-              <TableHead className="text-xs sm:text-sm min-w-[100px]">
+              <TableHead className="text-xs sm:text-sm min-w-25">
                 Payment
               </TableHead>
-              <TableHead className="text-right text-xs sm:text-sm min-w-[100px]">
+              <TableHead className="text-right text-xs sm:text-sm min-w-25">
                 Total
               </TableHead>
-              <TableHead className="text-xs sm:text-sm min-w-[100px]">
+              <TableHead className="text-xs sm:text-sm min-w-25">
                 Status
               </TableHead>
-              <TableHead className="text-xs sm:text-sm min-w-[120px]">
+              <TableHead className="text-xs sm:text-sm min-w-30">
                 Paid At
               </TableHead>
-              <TableHead className="text-xs sm:text-sm min-w-[120px]">
+              <TableHead className="text-xs sm:text-sm min-w-30">
                 Created By
               </TableHead>
-              <TableHead className="text-right text-xs sm:text-sm min-w-[150px]">
+              <TableHead className="text-right text-xs sm:text-sm min-w-37.5">
                 Actions
               </TableHead>
             </TableRow>
@@ -426,10 +518,29 @@ export function PurchaseOrderTable() {
           <TableBody>
             {filteredInvoices.length === 0 ? (
               <TableRow>
-                <TableCell
-                  colSpan={9}
-                  className="text-center text-muted-foreground">
-                  No orders found
+                <TableCell colSpan={9} className="text-center py-8">
+                  <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                    <FileText className="h-8 w-8 opacity-40" />
+                    <div>
+                      {invoices.length === 0 ? (
+                        <>
+                          <p className="font-medium">No orders yet</p>
+                          <p className="text-xs">
+                            Create your first purchase order to get started
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="font-medium">
+                            No orders match your filters
+                          </p>
+                          <p className="text-xs">
+                            Try adjusting your search or status filter
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (
@@ -500,69 +611,49 @@ export function PurchaseOrderTable() {
                   </TableCell>
                   <TableCell>
                     <div
-                      className="flex justify-end gap-2"
+                      className="flex justify-end gap-2 flex-wrap"
                       onClick={(e) => e.stopPropagation()}>
-                      {invoice.status?.toLowerCase() === "pending" &&
-                        invoice.paymentMethod === "KHQR" &&
-                        invoice.invoiceId && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() =>
-                              checkSinglePayment(invoice.invoiceId!)
-                            }
-                            title="Check payment status"
-                            className="text-blue-600 hover:text-blue-700"
-                            disabled={checkingPayments.has(invoice.invoiceId)}>
-                            <RefreshCw
-                              className={`h-4 w-4 ${
-                                invoice.invoiceId &&
-                                checkingPayments.has(invoice.invoiceId)
-                                  ? "animate-spin"
-                                  : ""
-                              }`}
-                            />
-                          </Button>
-                        )}
+
                       {invoice.status?.toLowerCase() === "pending" && (
                         <>
                           <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleMarkAsPaid(invoice)}
-                            title="Mark as paid"
-                            className="text-green-600 hover:text-green-700">
-                            <CheckCircle className="h-4 w-4" />
+                            variant="default"
+                            size="sm"
+                            onClick={() => handleMarkAsPaid(invoice)}>
+                            Mark Paid
                           </Button>
                           <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleCancelInvoice(invoice)}
-                            title="Cancel order"
-                            className="text-red-600 hover:text-red-700">
-                            <XCircle className="h-4 w-4" />
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleCancelInvoice(invoice)}>
+                            Cancel
                           </Button>
                         </>
                       )}
                       <Button
-                        variant="ghost"
-                        size="icon"
+                        variant="outline"
+                        size="sm"
                         onClick={() => {
                           // @ts-ignore
-                          setInvoiceToGenerate(invoice);
-                          setIsInvoiceGeneratorOpen(true);
-                        }}
-                        title="Generate invoice"
-                        className="text-blue-600 hover:text-blue-700">
-                        <FileText className="h-4 w-4" />
+                          if (
+                            invoice.paymentMethod === "KHQR" &&
+                            invoice.status?.toLowerCase() === "pending"
+                          ) {
+                            setInvoiceToPay(invoice);
+                            setIsKhqrPaymentOpen(true);
+                          } else {
+                            setInvoiceToGenerate(invoice);
+                            setIsInvoiceGeneratorOpen(true);
+                          }
+                        }}>
+                        Generate
                       </Button>
-                      {canWrite() && (
+                      {canWrite() && invoice.status?.toLowerCase() !== "pending" && (
                         <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(invoice.invoiceId)}
-                          title="Delete order">
-                          <Trash2 className="h-4 w-4 text-red-600" />
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDelete(invoice.invoiceId)}>
+                          Delete
                         </Button>
                       )}
                     </div>
@@ -593,6 +684,30 @@ export function PurchaseOrderTable() {
           onClose={() => {
             setIsInvoiceGeneratorOpen(false);
             setInvoiceToGenerate(null);
+          }}
+        />
+      )}
+
+      {isKhqrPaymentOpen && invoiceToPay && (
+        <KHQRPaymentDialog
+          open={isKhqrPaymentOpen}
+          onOpenChange={(open) => {
+            setIsKhqrPaymentOpen(open);
+            if (!open) {
+              setInvoiceToPay(null);
+            }
+          }}
+          invoice={{
+            invoiceId: invoiceToPay.invoiceId,
+            grandTotal: Number(
+              invoiceToPay.grandTotal || invoiceToPay.total || 0,
+            ),
+            customerName: invoiceToPay.customerName,
+            status: invoiceToPay.status,
+          }}
+          onPaymentSuccess={() => {
+            fetchInvoices();
+            if (onRefresh) onRefresh();
           }}
         />
       )}

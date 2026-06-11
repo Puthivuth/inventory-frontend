@@ -19,14 +19,18 @@ interface CustomerInsight {
   repeatRate: number
 }
 
-export function CustomerInsights() {
+interface CustomerInsightsProps {
+  invoices?: any[]
+}
+
+export function CustomerInsights({ invoices: propInvoices }: CustomerInsightsProps = {}) {
   const [insights, setInsights] = useState<CustomerInsight | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const loadInsights = async () => {
       try {
-        const invoices = await getInvoices()
+        const invoices = propInvoices || await getInvoices()
         const paidInvoices = invoices.filter(inv => inv.status === "paid")
 
         // Group by customer
@@ -89,7 +93,7 @@ export function CustomerInsights() {
     }
 
     loadInsights()
-  }, [])
+  }, [propInvoices])
 
   if (loading || !insights) {
     return (

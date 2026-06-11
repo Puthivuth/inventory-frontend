@@ -1,204 +1,219 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Loader2, CheckCircle2, QrCode, RefreshCw, ExternalLink } from "lucide-react"
-import QRCodeStyling from "qr-code-styling"
-import { useRef } from "react"
+import { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Loader2,
+  CheckCircle2,
+  QrCode,
+  RefreshCw,
+  ExternalLink,
+} from "lucide-react";
+import QRCodeStyling from "qr-code-styling";
+import { useRef } from "react";
 
 interface KHQRPaymentDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   invoice: {
-    invoiceId?: number
-    grandTotal?: number
-    total?: number
-    customerName: string
-    status: string
-  }
-  onPaymentSuccess?: () => void
+    invoiceId?: number;
+    grandTotal?: number;
+    total?: number;
+    customerName: string;
+    status: string;
+  };
+  onPaymentSuccess?: () => void;
 }
 
 interface PaymentStatus {
-  success: boolean
-  paid: boolean
-  payment_data?: any
-  invoice_status?: string
-  qr_string?: string
-  deeplink?: string
-  md5_hash?: string
+  success: boolean;
+  paid: boolean;
+  payment_data?: any;
+  invoice_status?: string;
+  qr_string?: string;
+  qr_image?: string;
+  deeplink?: string;
+  md5_hash?: string;
 }
 
-export function KHQRPaymentDialog({ 
-  open, 
-  onOpenChange, 
+export function KHQRPaymentDialog({
+  open,
+  onOpenChange,
   invoice,
-  onPaymentSuccess 
+  onPaymentSuccess,
 }: KHQRPaymentDialogProps) {
-  const [loading, setLoading] = useState(false)
-  const [checking, setChecking] = useState(false)
-  const [paymentData, setPaymentData] = useState<PaymentStatus | null>(null)
-  const [isPaid, setIsPaid] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const qrRef = useRef<HTMLDivElement>(null)
-  const qrCode = useRef<QRCodeStyling | null>(null)
-  const pollInterval = useRef<NodeJS.Timeout | null>(null)
+  const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [paymentData, setPaymentData] = useState<PaymentStatus | null>(null);
+  const [isPaid, setIsPaid] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const qrRef = useRef<HTMLDivElement>(null);
+  const qrCode = useRef<QRCodeStyling | null>(null);
+  const pollInterval = useRef<NodeJS.Timeout | null>(null);
+  const isPending = invoice.status?.toLowerCase() === "pending";
 
-  // Initialize QR Code
+  // Initialize QR Code - use standard square dots for Bakong scanner compatibility
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       qrCode.current = new QRCodeStyling({
         width: 300,
         height: 300,
-        type: "svg",
+        type: "canvas",
         data: "",
         dotsOptions: {
           color: "#000000",
-          type: "rounded"
+          type: "square",
         },
         backgroundOptions: {
           color: "#ffffff",
         },
-        imageOptions: {
-          crossOrigin: "anonymous",
-          margin: 10
-        }
-      })
+      });
     }
-  }, [])
+  }, []);
 
   // Update QR code when payment data changes
   useEffect(() => {
     if (paymentData?.qr_string && qrCode.current && qrRef.current) {
       qrCode.current.update({
-        data: paymentData.qr_string
-      })
-      qrRef.current.innerHTML = ""
-      qrCode.current.append(qrRef.current)
+        data: paymentData.qr_string,
+      });
+      qrRef.current.innerHTML = "";
+      qrCode.current.append(qrRef.current);
     }
-  }, [paymentData?.qr_string])
+  }, [paymentData?.qr_string]);
 
   // Generate KHQR QR code
   const generateQRCode = async () => {
-    setLoading(true)
-    setError(null)
-    
+    setLoading(true);
+    setError(null);
+
     try {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem("token");
       const response = await fetch(
-        `http://localhost:8000/api/invoices/${invoice.invoiceId}/generate_khqr/`,
+        `${process.env.NEXT_PUBLIC_API_URL}/invoices/${invoice.invoiceId}/generate_khqr/`,
         {
-          method: 'POST',
+          method: "POST",
           headers: {
-            'Authorization': `Token ${token}`,
-            'Content-Type': 'application/json',
+            Authorization: `Token ${token}`,
+            "Content-Type": "application/json",
           },
-        }
-      )
+        },
+      );
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to generate QR code')
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to generate QR code");
       }
 
-      const data = await response.json()
-      setPaymentData(data)
-      
+      const data = await response.json();
+      setPaymentData(data);
+
       // Start polling for payment status
-      startPaymentPolling()
+      startPaymentPolling();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate QR code')
-      console.error('Error generating QR code:', err)
+      setError(
+        err instanceof Error ? err.message : "Failed to generate QR code",
+      );
+      console.error("Error generating QR code:", err);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   // Check payment status
   const checkPaymentStatus = async () => {
-    setChecking(true)
-    
+    setChecking(true);
+
     try {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem("token");
       const response = await fetch(
-        `http://localhost:8000/api/invoices/${invoice.invoiceId}/check_payment/`,
+        `${process.env.NEXT_PUBLIC_API_URL}/invoices/${invoice.invoiceId}/check_payment/`,
         {
-          method: 'POST',
+          method: "POST",
           headers: {
-            'Authorization': `Token ${token}`,
-            'Content-Type': 'application/json',
+            Authorization: `Token ${token}`,
+            "Content-Type": "application/json",
           },
-        }
-      )
+        },
+      );
 
       if (!response.ok) {
-        throw new Error('Failed to check payment status')
+        throw new Error("Failed to check payment status");
       }
 
-      const data: PaymentStatus = await response.json()
-      
+      const data: PaymentStatus = await response.json();
+
       if (data.paid) {
-        setIsPaid(true)
-        stopPaymentPolling()
-        
+        setIsPaid(true);
+        stopPaymentPolling();
+
         // Call success callback after a short delay
         setTimeout(() => {
-          onPaymentSuccess?.()
-          onOpenChange(false)
-        }, 2000)
+          onPaymentSuccess?.();
+          onOpenChange(false);
+        }, 2000);
       }
-      
-      return data.paid
+
+      return data.paid;
     } catch (err) {
-      console.error('Error checking payment:', err)
-      return false
+      console.error("Error checking payment:", err);
+      return false;
     } finally {
-      setChecking(false)
+      setChecking(false);
     }
-  }
+  };
 
   // Start polling for payment
   const startPaymentPolling = () => {
-    // Polling disabled - payment status is checked:
-    // 1. On page load via invoice-preview.tsx
-    // 2. By Celery background task (every minute on server)
-    // 3. Manually by clicking "Check Payment Status" button
-    console.log('[KHQR Dialog] Auto-polling disabled. Check payment manually or wait for background task.')
-  }
+    if (pollInterval.current) {
+      clearInterval(pollInterval.current);
+    }
+
+    // Poll every 3 seconds
+    pollInterval.current = setInterval(() => {
+      checkPaymentStatus();
+    }, 3000);
+  };
 
   // Stop polling
   const stopPaymentPolling = () => {
     if (pollInterval.current) {
-      clearInterval(pollInterval.current)
-      pollInterval.current = null
+      clearInterval(pollInterval.current);
+      pollInterval.current = null;
     }
-  }
+  };
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      stopPaymentPolling()
-    }
-  }, [])
+      stopPaymentPolling();
+    };
+  }, []);
 
   // Generate QR code when dialog opens
   useEffect(() => {
-    if (open && !paymentData && !isPaid && invoice.status === 'Pending') {
-      generateQRCode()
+    if (open && !paymentData && !isPaid && isPending) {
+      generateQRCode();
     }
-  }, [open])
+  }, [open, isPending, paymentData, isPaid]);
 
   // Reset state when dialog closes
   useEffect(() => {
     if (!open) {
-      stopPaymentPolling()
-      setPaymentData(null)
-      setIsPaid(false)
-      setError(null)
+      stopPaymentPolling();
+      setPaymentData(null);
+      setIsPaid(false);
+      setError(null);
     }
-  }, [open])
+  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -219,7 +234,9 @@ export function KHQRPaymentDialog({
             <CardContent className="pt-6">
               <div className="text-center">
                 <p className="text-sm text-muted-foreground">Amount to Pay</p>
-                <p className="text-3xl font-bold">${(invoice.grandTotal || invoice.total || 0).toFixed(2)}</p>
+                <p className="text-3xl font-bold">
+                  ${(invoice.grandTotal || invoice.total || 0).toFixed(2)}
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -228,7 +245,9 @@ export function KHQRPaymentDialog({
           {loading && (
             <div className="flex flex-col items-center justify-center py-8 space-y-4">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm text-muted-foreground">Generating QR Code...</p>
+              <p className="text-sm text-muted-foreground">
+                Generating QR Code...
+              </p>
             </div>
           )}
 
@@ -237,11 +256,10 @@ export function KHQRPaymentDialog({
             <Card className="border-destructive">
               <CardContent className="pt-6">
                 <p className="text-sm text-destructive text-center">{error}</p>
-                <Button 
-                  onClick={generateQRCode} 
+                <Button
+                  onClick={generateQRCode}
                   className="w-full mt-4"
-                  variant="outline"
-                >
+                  variant="outline">
                   Try Again
                 </Button>
               </CardContent>
@@ -255,7 +273,9 @@ export function KHQRPaymentDialog({
                 <div className="flex flex-col items-center space-y-4">
                   <CheckCircle2 className="h-16 w-16 text-green-500" />
                   <div className="text-center">
-                    <p className="text-lg font-semibold text-green-600">Payment Successful!</p>
+                    <p className="text-lg font-semibold text-green-600">
+                      Payment Successful!
+                    </p>
                     <p className="text-sm text-muted-foreground mt-1">
                       Invoice has been marked as paid
                     </p>
@@ -273,10 +293,29 @@ export function KHQRPaymentDialog({
                 <CardContent className="pt-6">
                   <div className="flex flex-col items-center space-y-4">
                     <p className="text-sm font-medium">Scan with Bakong App</p>
-                    <div 
-                      ref={qrRef} 
-                      className="border rounded-lg p-4 bg-white"
-                    />
+                    {paymentData.qr_image ? (
+                      <img
+                        src={paymentData.qr_image}
+                        alt="KHQR Payment QR Code"
+                        className="w-full max-w-xs h-auto object-contain rounded-lg shadow-sm border border-gray-200"
+                      />
+                    ) : (
+                      <div
+                        ref={qrRef}
+                        className="w-full max-w-xs border border-gray-200 rounded-lg p-2 bg-white shadow-sm"
+                      />
+                    )}
+                    <div className="flex flex-col items-center gap-1 pt-1">
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <RefreshCw
+                          className={`h-3 w-3 ${checking ? "animate-spin" : ""}`}
+                        />
+                        Auto-checking payment status...
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Open your Bakong app and scan this QR code
+                      </p>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -284,10 +323,9 @@ export function KHQRPaymentDialog({
               {/* Deeplink Button */}
               {paymentData.deeplink && (
                 <Button
-                  onClick={() => window.open(paymentData.deeplink, '_blank')}
+                  onClick={() => window.open(paymentData.deeplink, "_blank")}
                   className="w-full"
-                  variant="outline"
-                >
+                  variant="outline">
                   <ExternalLink className="mr-2 h-4 w-4" />
                   Open in Bakong App
                 </Button>
@@ -298,54 +336,57 @@ export function KHQRPaymentDialog({
                 onClick={checkPaymentStatus}
                 disabled={checking}
                 className="w-full"
-                variant="secondary"
-              >
+                variant="secondary">
                 {checking && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {checking ? 'Checking...' : 'Check Payment Status'}
+                {checking ? "Checking..." : "Check Payment Status"}
                 {!checking && <RefreshCw className="ml-2 h-4 w-4" />}
               </Button>
 
               {/* Manual Mark as Paid Button */}
               <Button
                 onClick={async () => {
-                  if (confirm('Have you verified the payment was received in your Bakong account? This will mark the invoice as paid.')) {
+                  if (
+                    confirm(
+                      "Have you verified the payment was received in your Bakong account? This will mark the invoice as paid.",
+                    )
+                  ) {
                     try {
-                      const token = localStorage.getItem('token')
+                      const token = localStorage.getItem("token");
                       const response = await fetch(
-                        `http://localhost:8000/api/invoices/${invoice.invoiceId}/mark_as_paid/`,
+                        `${process.env.NEXT_PUBLIC_API_URL}/invoices/${invoice.invoiceId}/mark_as_paid/`,
                         {
-                          method: 'POST',
+                          method: "POST",
                           headers: {
-                            'Authorization': `Token ${token}`,
-                            'Content-Type': 'application/json',
+                            Authorization: `Token ${token}`,
+                            "Content-Type": "application/json",
                           },
-                        }
-                      )
+                        },
+                      );
                       if (response.ok) {
-                        setIsPaid(true)
+                        setIsPaid(true);
                         setTimeout(() => {
-                          onPaymentSuccess?.()
-                          onOpenChange(false)
-                        }, 2000)
+                          onPaymentSuccess?.();
+                          onOpenChange(false);
+                        }, 2000);
                       }
                     } catch (err) {
-                      console.error('Error marking as paid:', err)
+                      console.error("Error marking as paid:", err);
                     }
                   }
                 }}
                 className="w-full"
-                variant="outline"
-              >
+                variant="outline">
                 ✓ Mark as Paid (Manual)
               </Button>
 
               <p className="text-xs text-center text-muted-foreground">
-                Note: Automatic payment verification requires NBC approval for your merchant account
+                Note: Automatic payment verification requires NBC approval for
+                your merchant account
               </p>
             </div>
           )}
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

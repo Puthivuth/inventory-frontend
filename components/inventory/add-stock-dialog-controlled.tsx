@@ -9,11 +9,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus } from "lucide-react";
 import type { InventoryItem } from "@/types";
 import {
   updateInventoryItem,
@@ -22,13 +20,19 @@ import {
 } from "@/lib/api";
 import { isManagerOrAdmin } from "@/lib/permissions";
 
-interface AddStockDialogProps {
-  item: InventoryItem;
+interface AddStockDialogControlledProps {
+  item: InventoryItem | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
 }
 
-export function AddStockDialog({ item, onSuccess }: AddStockDialogProps) {
-  const [open, setOpen] = useState(false);
+export function AddStockDialogControlled({
+  item,
+  open,
+  onOpenChange,
+  onSuccess,
+}: AddStockDialogControlledProps) {
   const [quantity, setQuantity] = useState("");
   const [newCostPrice, setNewCostPrice] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -40,6 +44,8 @@ export function AddStockDialog({ item, onSuccess }: AddStockDialogProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!item) return;
 
     const addQty = parseInt(quantity);
     if (isNaN(addQty) || addQty <= 0) {
@@ -98,7 +104,7 @@ export function AddStockDialog({ item, onSuccess }: AddStockDialogProps) {
           }
         }
 
-        setOpen(false);
+        onOpenChange(false);
         setQuantity("");
         setNewCostPrice("");
         onSuccess();
@@ -119,21 +125,14 @@ export function AddStockDialog({ item, onSuccess }: AddStockDialogProps) {
     }
   };
 
+  if (!item) return null;
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 text-xs bg-green-50 hover:bg-green-100 text-green-700 border-green-200">
-          <Plus className="h-3 w-3 mr-1" />
-          Add Stock
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-[95vw] sm:max-w-[425px] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto border-blue-200">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Add Stock</DialogTitle>
+            <DialogTitle className="text-blue-700">Add Stock</DialogTitle>
             <DialogDescription>
               Add stock quantity for <strong>{item.name}</strong>
             </DialogDescription>
@@ -148,69 +147,51 @@ export function AddStockDialog({ item, onSuccess }: AddStockDialogProps) {
                 className="bg-muted"
               />
             </div>
+
             <div className="grid gap-2">
-              <Label htmlFor="add-quantity">Quantity to Add *</Label>
+              <Label htmlFor="quantity">Add Quantity *</Label>
               <Input
-                id="add-quantity"
+                id="quantity"
                 type="number"
-                min="1"
-                placeholder="Enter quantity"
+                placeholder="Enter quantity to add"
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
+                min="1"
                 required
-                autoFocus
               />
             </div>
+
             {showCostPrice && (
               <div className="grid gap-2">
-                <Label htmlFor="new-cost-price">
-                  New Cost Price ($) - Per Unit
-                  <span className="text-xs text-muted-foreground ml-2">
-                    (Current: ${item.costPrice?.toFixed(2) || "0.00"})
-                  </span>
-                </Label>
+                <Label htmlFor="cost-price">New Cost Price (Optional)</Label>
                 <Input
-                  id="new-cost-price"
+                  id="cost-price"
                   type="number"
-                  min="0"
-                  step="0.01"
                   placeholder="Enter cost price for this batch"
                   value={newCostPrice}
                   onChange={(e) => setNewCostPrice(e.target.value)}
+                  step="0.01"
+                  min="0"
                 />
-                {newCostPrice &&
-                  quantity &&
-                  parseInt(quantity) > 0 &&
-                  parseFloat(newCostPrice) >= 0 && (
-                    <div className="text-xs text-muted-foreground bg-blue-50 p-2 rounded">
-                      <strong>Weighted Average Cost:</strong> $
-                      {(
-                        (item.stock * (item.costPrice || 0) +
-                          parseInt(quantity) * parseFloat(newCostPrice)) /
-                        (item.stock + parseInt(quantity))
-                      ).toFixed(2)}
-                    </div>
-                  )}
-              </div>
-            )}
-            {quantity && parseInt(quantity) > 0 && (
-              <div className="grid gap-2">
-                <Label>New Stock Level</Label>
-                <div className="text-2xl font-bold text-green-600">
-                  {item.stock + parseInt(quantity)}
-                </div>
+                <p className="text-xs text-muted-foreground">
+                  If provided, cost price will be updated using weighted average
+                </p>
               </div>
             )}
           </div>
+
           <DialogFooter>
             <Button
               type="button"
               variant="outline"
-              onClick={() => setOpen(false)}
+              onClick={() => onOpenChange(false)}
               disabled={isLoading}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading}>
+            <Button
+              type="submit"
+              disabled={isLoading}
+              className="bg-blue-600 hover:bg-blue-700 text-white">
               {isLoading ? "Adding..." : "Add Stock"}
             </Button>
           </DialogFooter>

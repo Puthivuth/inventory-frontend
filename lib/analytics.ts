@@ -6,8 +6,8 @@ import {
   getSuppliers,
 } from "./api";
 
-export const calculateSalesData = async (): Promise<SalesData[]> => {
-  const invoices = await getInvoices();
+export const calculateSalesData = async (preFetchedInvoices?: any[]): Promise<SalesData[]> => {
+  const invoices = preFetchedInvoices || await getInvoices();
   const salesMap = new Map<string, SalesData>();
 
   invoices.forEach((invoice) => {
@@ -36,17 +36,17 @@ export const calculateSalesData = async (): Promise<SalesData[]> => {
   );
 };
 
-export const getLowStockItems = async (): Promise<InventoryItem[]> => {
-  const items = await getInventoryItems();
+export const getLowStockItems = async (preFetchedItems?: InventoryItem[]): Promise<InventoryItem[]> => {
+  const items = preFetchedItems || await getInventoryItems();
   return items
     .filter((item) => item.stock <= item.minStock)
     .sort((a, b) => a.stock - b.stock);
 };
 
-export const calculateRevenueByDate = async (): Promise<
+export const calculateRevenueByDate = async (preFetchedInvoices?: any[]): Promise<
   { date: string; revenue: number; invoices: number }[]
 > => {
-  const invoices = await getInvoices();
+  const invoices = preFetchedInvoices || await getInvoices();
   const paidInvoices = invoices.filter(
     (inv) => inv.status?.toLowerCase() === "paid",
   );
@@ -68,9 +68,9 @@ export const calculateRevenueByDate = async (): Promise<
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 };
 
-export const calculateTotalStats = async () => {
-  const invoices = await getInvoices();
-  const items = await getInventoryItems();
+export const calculateTotalStats = async (preFetchedInvoices?: any[], preFetchedItems?: InventoryItem[]) => {
+  const invoices = preFetchedInvoices || await getInvoices();
+  const items = preFetchedItems || await getInventoryItems();
 
   const totalProducts = items.length;
   const totalStock = items.reduce((sum, item) => sum + item.stock, 0);
@@ -91,9 +91,9 @@ export const calculateTotalStats = async () => {
   };
 };
 
-export const calculateRestockPredictions = async () => {
-  const items = await getInventoryItems();
-  const invoices = await getInvoices();
+export const calculateRestockPredictions = async (preFetchedItems?: InventoryItem[], preFetchedInvoices?: any[]) => {
+  const items = preFetchedItems || await getInventoryItems();
+  const invoices = preFetchedInvoices || await getInvoices();
 
   // Calculate average daily sales for each product
   const salesVelocity = new Map<
@@ -145,11 +145,15 @@ export const calculateRestockPredictions = async () => {
   });
 };
 
-export const calculateSupplierAnalytics = async () => {
+export const calculateSupplierAnalytics = async (
+  preFetchedSuppliers?: any[],
+  preFetchedItems?: InventoryItem[],
+  preFetchedInvoices?: any[]
+) => {
   // 1. Fetch all necessary raw data
-  const suppliers = await getSuppliers();
-  const inventoryItems = await getInventoryItems();
-  const invoices = await getInvoices();
+  const suppliers = preFetchedSuppliers || await getSuppliers();
+  const inventoryItems = preFetchedItems || await getInventoryItems();
+  const invoices = preFetchedInvoices || await getInvoices();
 
   // 2. Create a lookup map for inventory items to quickly find their supplier
   const inventoryItemMap = new Map<string, InventoryItem>();
@@ -222,9 +226,9 @@ export const getTopSuppliers = async (limit = 5) => {
   return analytics.slice(0, limit);
 };
 
-export const calculateProfitAnalytics = async () => {
-  const invoices = await getInvoices();
-  const items = await getInventoryItems();
+export const calculateProfitAnalytics = async (preFetchedInvoices?: any[], preFetchedItems?: InventoryItem[]) => {
+  const invoices = preFetchedInvoices || await getInvoices();
+  const items = preFetchedItems || await getInventoryItems();
 
   let totalRevenue = 0;
   let totalCost = 0;

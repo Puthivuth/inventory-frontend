@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import type { InventoryItem, InvoiceItem } from "@/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -247,7 +247,7 @@ export function CreateInvoiceForm({ onSubmit }: CreateInvoiceFormProps) {
                         <SelectValue placeholder="Select product" />
                       </SelectTrigger>
                       <SelectContent>
-                        {activeInventoryItems.map((invItem) => (
+                        {activeInventoryItems.map((invItem: InventoryItem) => (
                           <SelectItem key={invItem.id} value={invItem.id}>
                             {invItem.name} - ${invItem.price.toFixed(2)} (Stock: {invItem.stock})
                           </SelectItem>

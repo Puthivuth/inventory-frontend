@@ -32,7 +32,12 @@ interface DebugData {
   profit: number
 }
 
-export function ProfitSummary() {
+interface ProfitSummaryProps {
+  invoices?: any[]
+  items?: InventoryItem[]
+}
+
+export function ProfitSummary({ invoices: propInvoices, items: propItems }: ProfitSummaryProps = {}) {
   const [analytics, setAnalytics] = useState<ProfitAnalytics | null>(null)
   const [loading, setLoading] = useState(true)
   const [debugData, setDebugData] = useState<DebugData[]>([])
@@ -45,19 +50,19 @@ export function ProfitSummary() {
 
     const fetchData = async () => {
       try {
-        const data = await calculateProfitAnalytics()
+        const invoices = propInvoices || await getInvoices()
+        const items = propItems || await getInventoryItems()
+        const data = await calculateProfitAnalytics(invoices, items)
         setAnalytics(data)
 
         // Debugging logic to provide a breakdown
-        const invoices = await getInvoices()
-        const items = await getInventoryItems()
         const paidInvoices = invoices
           .filter(inv => inv.status === 'paid')
           .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
           .slice(0, 5);
           
         const details: DebugData[] = []
-        
+         
         paidInvoices.forEach(invoice => {
           invoice.items.forEach((invoiceItem: any) => {
             const inventoryItem = items.find(item => item.productId === invoiceItem.inventoryItemId)
@@ -88,7 +93,7 @@ export function ProfitSummary() {
     }
 
     fetchData()
-  }, [])
+  }, [propInvoices, propItems])
 
   if (!isManagerOrAdmin()) {
     return null

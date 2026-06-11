@@ -1,3 +1,4 @@
+# Stage 1: build
 FROM node:20-alpine AS builder
 
 WORKDIR /app
@@ -8,15 +9,16 @@ RUN npm install
 COPY . .
 RUN npm run build
 
-# production runtime
+
+# Stage 2: run
 FROM node:20-alpine
 
 WORKDIR /app
 
-RUN npm install -g serve
+COPY --from=builder /app ./
 
-COPY --from=builder /app/build ./build
+RUN npm install -g next
 
 EXPOSE 3001
 
-CMD ["serve", "-s", "build", "-l", "3001"]
+CMD ["npm", "start"]

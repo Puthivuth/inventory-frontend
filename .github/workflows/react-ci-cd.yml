@@ -41,7 +41,6 @@ jobs:
   deploy_prod:
     runs-on: self-hosted
     needs: docker_build
-    if: github.ref == 'refs/heads/production'
 
     steps:
       - name: Deploy production frontend

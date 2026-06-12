@@ -27,14 +27,17 @@ jobs:
       - name: Build & push DEV (master)
         if: github.ref == 'refs/heads/master'
         run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/inventory-frontend:dev .
+          docker build \
+            --build-arg NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }} \
+            -t ${{ secrets.DOCKER_USERNAME }}/inventory-frontend:dev .
           docker push ${{ secrets.DOCKER_USERNAME }}/inventory-frontend:dev
 
       # ---------------- PRODUCTION ----------------
       - name: Build & push PROD (production)
-        # if: github.ref == 'refs/heads/production'
         run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/inventory-frontend:latest .
+          docker build \
+            --build-arg NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }} \
+            -t ${{ secrets.DOCKER_USERNAME }}/inventory-frontend:latest .
           docker push ${{ secrets.DOCKER_USERNAME }}/inventory-frontend:latest
 
 
@@ -53,5 +56,4 @@ jobs:
           docker run -d \
             --name frontend \
             -p 3001:3001 \
-            --env-file /home/vuth/inventory/.env.local \
             ${{ secrets.DOCKER_USERNAME }}/inventory-frontend:latest

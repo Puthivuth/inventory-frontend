@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { CustomerDialog } from "./customer-dialog";
 import { canWrite } from "@/lib/permissions";
+import { fetchAPI } from "@/lib/api";
 
 interface Customer {
   customerId: number;
@@ -62,25 +63,13 @@ export function CustomersTable({ onRefresh }: CustomersTableProps = {}) {
 
   const fetchCustomers = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/customers/`, {
-        headers: {
-          Authorization: `Token ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        // Sort by createdAt descending (newest first)
-        const sortedData = data.sort(
-          (a: any, b: any) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-        );
-        setCustomers(sortedData);
-      } else {
-        console.error("Failed to fetch customers");
-      }
+      const data = await fetchAPI("/customers/");
+      // Sort by createdAt descending (newest first)
+      const sortedData = data.sort(
+        (a: any, b: any) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      );
+      setCustomers(sortedData);
     } catch (error) {
       console.error("Error fetching customers:", error);
     } finally {
@@ -92,22 +81,10 @@ export function CustomersTable({ onRefresh }: CustomersTableProps = {}) {
     if (!confirm("Are you sure you want to delete this customer?")) return;
 
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/customers/${customerId}/`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Token ${token}`,
-          },
-        },
-      );
-
-      if (response.ok) {
-        fetchCustomers();
-      } else {
-        alert("Failed to delete customer");
-      }
+      await fetchAPI(`/customers/${customerId}/`, {
+        method: "DELETE",
+      });
+      fetchCustomers();
     } catch (error) {
       console.error("Error deleting customer:", error);
       alert("Error deleting customer");

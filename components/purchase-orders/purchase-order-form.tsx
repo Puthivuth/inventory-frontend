@@ -22,6 +22,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { fetchAPI } from "@/lib/api";
 
 interface Invoice {
   invoiceId: number;
@@ -152,43 +153,19 @@ export function PurchaseOrderForm({
 
   const loadData = async () => {
     try {
-      const token = localStorage.getItem("token");
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
       try {
-        // Fetch customers
-        const customersRes = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/customers/`,
-          {
-            headers: { Authorization: `Token ${token}` },
-            signal: controller.signal,
-          },
-        );
-        if (customersRes.ok) {
-          setCustomers(await customersRes.json());
-        }
+        const [customersData, productsData, inventoryData] = await Promise.all([
+          fetchAPI("/customers/", { signal: controller.signal }),
+          fetchAPI("/products/", { signal: controller.signal }),
+          fetchAPI("/inventory/", { signal: controller.signal }),
+        ]);
 
-        // Fetch products
-        const productsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/products/`, {
-          headers: { Authorization: `Token ${token}` },
-          signal: controller.signal,
-        });
-        if (productsRes.ok) {
-          setProducts(await productsRes.json());
-        }
-
-        // Fetch inventory
-        const inventoryRes = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/inventory/`,
-          {
-            headers: { Authorization: `Token ${token}` },
-            signal: controller.signal,
-          },
-        );
-        if (inventoryRes.ok) {
-          setInventory(await inventoryRes.json());
-        }
+        setCustomers(customersData);
+        setProducts(productsData);
+        setInventory(inventoryData);
       } finally {
         clearTimeout(timeoutId);
       }
@@ -330,16 +307,11 @@ export function PurchaseOrderForm({
     }
 
     try {
-      const token = localStorage.getItem("token");
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/customers/`, {
+      const newCustomer = await fetchAPI("/customers/", {
         method: "POST",
-        headers: {
-          Authorization: `Token ${token}`,
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify({
           name: newCustomerName.trim(),
           customerType: newCustomerType,
@@ -352,28 +324,22 @@ export function PurchaseOrderForm({
 
       clearTimeout(timeoutId);
 
-      if (response.ok) {
-        const newCustomer = await response.json();
-        setCustomers([...customers, newCustomer]);
-        setCustomerId(newCustomer.customerId);
-        setIsCustomerDialogOpen(false);
-        // Reset form
-        setNewCustomerName("");
-        setNewCustomerType("Individual");
-        setNewCustomerPhone("");
-        setNewCustomerEmail("");
-        setNewCustomerAddress("");
-      } else {
-        const error = await response.json();
-        alert(`Failed to add customer: ${JSON.stringify(error)}`);
-      }
+      setCustomers([...customers, newCustomer]);
+      setCustomerId(newCustomer.customerId);
+      setIsCustomerDialogOpen(false);
+      // Reset form
+      setNewCustomerName("");
+      setNewCustomerType("Individual");
+      setNewCustomerPhone("");
+      setNewCustomerEmail("");
+      setNewCustomerAddress("");
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
         console.error("Add customer request timeout");
         alert("Request timeout. The server took too long to respond.");
       } else {
         console.error("Error adding customer:", error);
-        alert("Error adding customer");
+        alert(error instanceof Error ? error.message : "Error adding customer");
       }
     }
   };
@@ -403,8 +369,6 @@ export function PurchaseOrderForm({
     setProceedWithLowStock(false);
 
     try {
-      const token = localStorage.getItem("token");
-
       // Get customer details
       const selectedCustomer = customers.find(
         (c) => c.customerId === customerId,
@@ -436,66 +400,25 @@ export function PurchaseOrderForm({
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-      let response;
-      if (invoice) {
-        // Update existing invoice
-        response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/invoices/${invoice.invoiceId}/`,
-          {
+      try {
+        if (invoice) {
+          // Update existing invoice
+          await fetchAPI(`/invoices/${invoice.invoiceId}/`, {
             method: "PUT",
-            headers: {
-              Authorization: `Token ${token}`,
-              "Content-Type": "application/json",
-            },
             body: JSON.stringify(invoiceData),
             signal: controller.signal,
-          },
-        );
-      } else {
-        // Create new invoice
-        response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/invoices/`, {
-          method: "POST",
-          headers: {
-            Authorization: `Token ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(invoiceData),
-          signal: controller.signal,
-        });
-      }
-
-      clearTimeout(timeoutId);
-
-      if (response.ok) {
-        onSuccess();
-      } else {
-        const errorText = await response.text();
-        console.error("Error response status:", response.status);
-        console.error("Error response:", errorText);
-
-        let formattedError = "Failed to save order. Please try again.";
-
-        try {
-          const errorJson = JSON.parse(errorText);
-
-          // Handle specific validation errors
-          if (response.status === 400) {
-            if (errorJson.lineItems) {
-              formattedError = `Stock Issue: ${errorJson.lineItems}`;
-            } else if (errorJson.detail) {
-              formattedError = `Error: ${errorJson.detail}`;
-            } else {
-              formattedError = `Validation Error: ${JSON.stringify(errorJson)}`;
-            }
-          } else {
-            formattedError = `Failed to save order: ${JSON.stringify(errorJson)}`;
-          }
-        } catch {
-          formattedError = `Failed to save order: ${errorText.substring(0, 200)}`;
+          });
+        } else {
+          // Create new invoice
+          await fetchAPI("/invoices/", {
+            method: "POST",
+            body: JSON.stringify(invoiceData),
+            signal: controller.signal,
+          });
         }
-
-        setErrorMessage(formattedError);
-        setErrorDialog(true);
+        onSuccess();
+      } finally {
+        clearTimeout(timeoutId);
       }
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
@@ -505,7 +428,7 @@ export function PurchaseOrderForm({
         );
       } else {
         console.error("Error saving order:", error);
-        setErrorMessage("Failed to save order. Please try again.");
+        setErrorMessage(error instanceof Error ? error.message : "Failed to save order. Please try again.");
       }
       setErrorDialog(true);
     } finally {

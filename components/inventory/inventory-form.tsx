@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { uploadProductImage, deleteProductImage } from "@/lib/api";
+import { uploadProductImage, deleteProductImage, fetchAPI } from "@/lib/api";
 import { Upload, X, Plus, ArrowLeft } from "lucide-react";
 import Image from "next/image";
 import {
@@ -103,49 +103,14 @@ export function InventoryForm({
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const token = localStorage.getItem("token");
+        const sourcesData = await fetchAPI("/sources/");
+        setSources(sourcesData);
 
-        const sourcesResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/sources/`,
-          {
-            headers: {
-              Authorization: `Token ${token}`,
-              "Content-Type": "application/json",
-            },
-          },
-        );
-        if (sourcesResponse.ok) {
-          const sourcesData = await sourcesResponse.json();
-          setSources(sourcesData);
-        }
+        const categoriesData = await fetchAPI("/categories/");
+        setCategories(categoriesData);
 
-        const categoriesResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/categories/`,
-          {
-            headers: {
-              Authorization: `Token ${token}`,
-              "Content-Type": "application/json",
-            },
-          },
-        );
-        if (categoriesResponse.ok) {
-          const categoriesData = await categoriesResponse.json();
-          setCategories(categoriesData);
-        }
-
-        const subcategoriesResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/subcategories/`,
-          {
-            headers: {
-              Authorization: `Token ${token}`,
-              "Content-Type": "application/json",
-            },
-          },
-        );
-        if (subcategoriesResponse.ok) {
-          const subcategoriesData = await subcategoriesResponse.json();
-          setSubcategories(subcategoriesData);
-        }
+        const subcategoriesData = await fetchAPI("/subcategories/");
+        setSubcategories(subcategoriesData);
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -246,42 +211,25 @@ export function InventoryForm({
 
   const handleCreateSupplier = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sources/`, {
+      const createdSource = await fetchAPI("/sources/", {
         method: "POST",
-        headers: {
-          Authorization: `Token ${token}`,
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify(newSupplier),
       });
 
-      if (response.ok) {
-        const createdSource = await response.json();
-        setSources([...sources, createdSource]);
-        setFormData({
-          ...formData,
-          sourceId: createdSource.sourceId.toString(),
-        });
-        setShowNewSupplierDialog(false);
-        setNewSupplier({
-          name: "",
-          contactPerson: "",
-          phone: "",
-          email: "",
-          address: "",
-        });
-        alert("Supplier created successfully!");
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage =
-          errorData.detail ||
-          errorData.error ||
-          Object.values(errorData).join(", ") ||
-          "Failed to create supplier";
-        console.error("Error creating supplier:", errorData);
-        alert(errorMessage);
-      }
+      setSources([...sources, createdSource]);
+      setFormData({
+        ...formData,
+        sourceId: createdSource.sourceId.toString(),
+      });
+      setShowNewSupplierDialog(false);
+      setNewSupplier({
+        name: "",
+        contactPerson: "",
+        phone: "",
+        email: "",
+        address: "",
+      });
+      alert("Supplier created successfully!");
     } catch (error) {
       console.error("Error creating supplier:", error);
       alert(error instanceof Error ? error.message : "Error creating supplier");
@@ -290,36 +238,19 @@ export function InventoryForm({
 
   const handleCreateCategory = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/categories/`, {
+      const createdCategory = await fetchAPI("/categories/", {
         method: "POST",
-        headers: {
-          Authorization: `Token ${token}`,
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify(newCategory),
       });
 
-      if (response.ok) {
-        const createdCategory = await response.json();
-        setCategories([...categories, createdCategory]);
-        setFormData({
-          ...formData,
-          category: createdCategory.categoryId.toString(),
-        });
-        setShowNewCategoryDialog(false);
-        setNewCategory({ name: "" });
-        alert("Category created successfully!");
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage =
-          errorData.detail ||
-          errorData.error ||
-          Object.values(errorData).join(", ") ||
-          "Failed to create category";
-        console.error("Error creating category:", errorData);
-        alert(errorMessage);
-      }
+      setCategories([...categories, createdCategory]);
+      setFormData({
+        ...formData,
+        category: createdCategory.categoryId.toString(),
+      });
+      setShowNewCategoryDialog(false);
+      setNewCategory({ name: "" });
+      alert("Category created successfully!");
     } catch (error) {
       console.error("Error creating category:", error);
       alert(error instanceof Error ? error.message : "Error creating category");
@@ -333,39 +264,22 @@ export function InventoryForm({
     }
 
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/subcategories/`, {
+      const createdSubcategory = await fetchAPI("/subcategories/", {
         method: "POST",
-        headers: {
-          Authorization: `Token ${token}`,
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify({
           ...newSubcategory,
           category: formData.category,
         }),
       });
 
-      if (response.ok) {
-        const createdSubcategory = await response.json();
-        setSubcategories([...subcategories, createdSubcategory]);
-        setFormData({
-          ...formData,
-          subcategory: createdSubcategory.subcategoryId.toString(),
-        });
-        setShowNewSubcategoryDialog(false);
-        setNewSubcategory({ name: "" });
-        alert("Subcategory created successfully!");
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage =
-          errorData.detail ||
-          errorData.error ||
-          Object.values(errorData).join(", ") ||
-          "Failed to create subcategory";
-        console.error("Error creating subcategory:", errorData);
-        alert(errorMessage);
-      }
+      setSubcategories([...subcategories, createdSubcategory]);
+      setFormData({
+        ...formData,
+        subcategory: createdSubcategory.subcategoryId.toString(),
+      });
+      setShowNewSubcategoryDialog(false);
+      setNewSubcategory({ name: "" });
+      alert("Subcategory created successfully!");
     } catch (error) {
       console.error("Error creating subcategory:", error);
       alert(

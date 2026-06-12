@@ -11,6 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle } from "lucide-react";
+import { fetchAPI } from "@/lib/api";
 
 interface AssociatedProduct {
   productId: number;
@@ -42,24 +43,10 @@ export function ProductAssociations({
         setLoading(true);
         setError(null);
 
-        const token =
-          typeof window !== "undefined" ? localStorage.getItem("token") : null;
-
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/product-associations/by_product/?product_id=${productId}`,
-          {
-            headers: {
-              "Content-Type": "application/json",
-              ...(token ? { Authorization: `Token ${token}` } : {}),
-            },
-          },
+        const data = await fetchAPI(
+          `/product-associations/by_product/?product_id=${productId}`,
         );
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch product associations");
-        }
-
-        const data = await response.json();
         setProducts(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : "An error occurred");

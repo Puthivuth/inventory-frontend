@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { ArrowLeft, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getCurrentUser, getInventoryById } from "@/lib/api";
+import { getCurrentUser, getInventoryById, fetchAPI } from "@/lib/api";
 import { Sidebar } from "@/components/navigation/sidebar";
 import { InventoryForm } from "@/components/inventory/inventory-form";
 import { useSidebarState } from "@/hooks/use-sidebar-state";
@@ -58,163 +58,36 @@ export default function EditProductPage() {
     try {
       setIsSaving(true);
       setError(null);
-      const token = localStorage.getItem("token");
-
-      if (!token) {
-        throw new Error("Authentication token not found. Please log in again.");
-      }
 
       // Update product
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/products/${product?.productId}/`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Token ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            productName: formData.name,
-            description: formData.description,
-            skuCode: formData.sku,
-            subcategory: formData.subcategory,
-            source: formData.sourceId,
-            status: formData.status,
-            unit: formData.unit,
-            costPrice: formData.costPrice,
-            salePrice: formData.salePrice,
-            discount: formData.discount,
-            image: formData.imageUrl,
-          }),
-        },
-      );
-
-      if (!response.ok) {
-        let errorData: any = {};
-        let responseText = "";
-
-        try {
-          responseText = await response.text();
-
-          if (responseText && responseText.trim().startsWith("{")) {
-            try {
-              errorData = JSON.parse(responseText);
-            } catch (e) {
-              errorData = { rawResponse: responseText };
-            }
-          } else {
-            errorData = { rawResponse: responseText || "(empty response body)" };
-          }
-        } catch (readError) {
-          console.error("[EditProductPage] Failed to read response:", readError);
-          errorData = { readError: String(readError) };
-        }
-
-        console.error("[EditProductPage] Product update failed:", JSON.stringify({
-          status: response.status,
-          statusText: response.statusText,
-          contentType: response.headers.get("content-type"),
-          error: errorData,
-        }, null, 2));
-
-        let errorMessage = "";
-
-        if (errorData.detail) {
-          errorMessage = errorData.detail;
-        } else if (errorData.error) {
-          errorMessage = errorData.error;
-        } else if (errorData.rawResponse) {
-          errorMessage = errorData.rawResponse;
-        } else if (errorData.readError) {
-          errorMessage = `Failed to read error response: ${errorData.readError}`;
-        } else {
-          const stringErrors = Object.entries(errorData)
-            .filter(([_, v]) => typeof v === "string")
-            .map(([k, v]) => `${k}: ${v}`);
-          errorMessage =
-            stringErrors.join(", ") ||
-            `Failed to update product (HTTP ${response.status} ${response.statusText})`;
-        }
-
-        throw new Error(errorMessage);
-      }
+      await fetchAPI(`/products/${product?.productId}/`, {
+        method: "PUT",
+        body: JSON.stringify({
+          productName: formData.name,
+          description: formData.description,
+          skuCode: formData.sku,
+          subcategory: formData.subcategory,
+          source: formData.sourceId,
+          status: formData.status,
+          unit: formData.unit,
+          costPrice: formData.costPrice,
+          salePrice: formData.salePrice,
+          discount: formData.discount,
+          image: formData.imageUrl,
+        }),
+      });
 
       // Update inventory if stock or minStock changed
       if (product?.id) {
-        const inventoryResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/inventory/${product.id}/`,
-          {
-            method: "PUT",
-            headers: {
-              Authorization: `Token ${token}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              product: product.productId,
-              quantity: formData.stock,
-              reorderLevel: formData.minStock,
-              location: formData.location,
-            }),
-          },
-        );
-
-        if (!inventoryResponse.ok) {
-          let inventoryErrorData: any = {};
-          let inventoryResponseText = "";
-
-          try {
-            inventoryResponseText = await inventoryResponse.text();
-
-            if (
-              inventoryResponseText &&
-              inventoryResponseText.trim().startsWith("{")
-            ) {
-              try {
-                inventoryErrorData = JSON.parse(inventoryResponseText);
-              } catch (e) {
-                inventoryErrorData = { rawResponse: inventoryResponseText };
-              }
-            } else {
-              inventoryErrorData = {
-                rawResponse: inventoryResponseText || "(empty response body)",
-              };
-            }
-          } catch (readError) {
-            console.error(
-              "[EditProductPage] Failed to read inventory response:",
-              readError
-            );
-            inventoryErrorData = { readError: String(readError) };
-          }
-
-          console.error("[EditProductPage] Inventory update failed:", JSON.stringify({
-            status: inventoryResponse.status,
-            statusText: inventoryResponse.statusText,
-            contentType: inventoryResponse.headers.get("content-type"),
-            error: inventoryErrorData,
-          }, null, 2));
-
-          let inventoryErrorMessage = "";
-
-          if (inventoryErrorData.detail) {
-            inventoryErrorMessage = inventoryErrorData.detail;
-          } else if (inventoryErrorData.error) {
-            inventoryErrorMessage = inventoryErrorData.error;
-          } else if (inventoryErrorData.rawResponse) {
-            inventoryErrorMessage = inventoryErrorData.rawResponse;
-          } else if (inventoryErrorData.readError) {
-            inventoryErrorMessage = `Failed to read error response: ${inventoryErrorData.readError}`;
-          } else {
-            const stringErrors = Object.entries(inventoryErrorData)
-              .filter(([_, v]) => typeof v === "string")
-              .map(([k, v]) => `${k}: ${v}`);
-            inventoryErrorMessage =
-              stringErrors.join(", ") ||
-              `Failed to update inventory (HTTP ${inventoryResponse.status} ${inventoryResponse.statusText})`;
-          }
-
-          throw new Error(inventoryErrorMessage);
-        }
+        await fetchAPI(`/inventory/${product.id}/`, {
+          method: "PUT",
+          body: JSON.stringify({
+            product: product.productId,
+            quantity: formData.stock,
+            reorderLevel: formData.minStock,
+            location: formData.location,
+          }),
+        });
       }
 
       router.push(`/inventory/${productId}`);
@@ -234,71 +107,9 @@ export default function EditProductPage() {
 
     try {
       setIsSaving(true);
-      const token = localStorage.getItem("token");
-
-      if (!token) {
-        throw new Error("Authentication token not found. Please log in again.");
-      }
-
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/products/${product?.productId}/`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Token ${token}`,
-          },
-        },
-      );
-
-      if (!response.ok) {
-        let errorData: any = {};
-        let responseText = "";
-
-        try {
-          responseText = await response.text();
-
-          if (responseText && responseText.trim().startsWith("{")) {
-            try {
-              errorData = JSON.parse(responseText);
-            } catch (e) {
-              errorData = { rawResponse: responseText };
-            }
-          } else {
-            errorData = { rawResponse: responseText || "(empty response body)" };
-          }
-        } catch (readError) {
-          console.error("[EditProductPage] Failed to read response:", readError);
-          errorData = { readError: String(readError) };
-        }
-
-        console.error("[EditProductPage] Product deletion failed:", JSON.stringify({
-          status: response.status,
-          statusText: response.statusText,
-          contentType: response.headers.get("content-type"),
-          error: errorData,
-        }, null, 2));
-
-        let errorMessage = "";
-
-        if (errorData.detail) {
-          errorMessage = errorData.detail;
-        } else if (errorData.error) {
-          errorMessage = errorData.error;
-        } else if (errorData.rawResponse) {
-          errorMessage = errorData.rawResponse;
-        } else if (errorData.readError) {
-          errorMessage = `Failed to read error response: ${errorData.readError}`;
-        } else {
-          const stringErrors = Object.entries(errorData)
-            .filter(([_, v]) => typeof v === "string")
-            .map(([k, v]) => `${k}: ${v}`);
-          errorMessage =
-            stringErrors.join(", ") ||
-            `Failed to delete product (HTTP ${response.status} ${response.statusText})`;
-        }
-
-        throw new Error(errorMessage);
-      }
+      await fetchAPI(`/products/${product?.productId}/`, {
+        method: "DELETE",
+      });
 
       router.push("/inventory");
     } catch (err) {

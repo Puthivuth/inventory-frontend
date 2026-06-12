@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { fetchAPI } from "@/lib/api";
 
 interface Customer {
   customerId: number;
@@ -71,10 +72,9 @@ export function CustomerDialog({
     e.preventDefault();
 
     try {
-      const token = localStorage.getItem("token");
-      const url = customer
-        ? `${process.env.NEXT_PUBLIC_API_URL}/customers/${customer.customerId}/`
-        : `${process.env.NEXT_PUBLIC_API_URL}/customers/`;
+      const endpoint = customer
+        ? `/customers/${customer.customerId}/`
+        : "/customers/";
 
       const method = customer ? "PUT" : "POST";
 
@@ -91,25 +91,15 @@ export function CustomerDialog({
         payload.firstPurchaseDate = formData.firstPurchaseDate;
       }
 
-      const response = await fetch(url, {
+      await fetchAPI(endpoint, {
         method,
-        headers: {
-          Authorization: `Token ${token}`,
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify(payload),
       });
 
-      if (response.ok) {
-        onSuccess();
-      } else {
-        const errorData = await response.json();
-        console.error("Failed to save customer:", errorData);
-        alert(`Failed to save customer: ${JSON.stringify(errorData)}`);
-      }
+      onSuccess();
     } catch (error) {
       console.error("Error saving customer:", error);
-      alert("Error saving customer");
+      alert(error instanceof Error ? error.message : "Error saving customer");
     }
   };
 

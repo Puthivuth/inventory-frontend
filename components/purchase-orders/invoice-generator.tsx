@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { FileText, Download } from "lucide-react";
 import QRCodeStyling from "qr-code-styling";
+import { fetchAPI } from "@/lib/api";
 
 interface Invoice {
   id: string;
@@ -108,30 +109,15 @@ export function InvoiceGenerator({ invoice, onClose }: InvoiceGeneratorProps) {
     );
     setLoadingQR(true);
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/invoices/${invoice.invoiceId}/generate_khqr/`,
+      const data = await fetchAPI(
+        `/invoices/${invoice.invoiceId}/generate_khqr/`,
         {
           method: "POST",
-          headers: {
-            Authorization: `Token ${token}`,
-            "Content-Type": "application/json",
-          },
         },
       );
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log("[Invoice Generator] KHQR data received:", data);
-        setKhqrData(data);
-      } else {
-        const errorText = await response.text();
-        console.error(
-          "[Invoice Generator] KHQR generation failed:",
-          response.status,
-          errorText,
-        );
-      }
+      console.log("[Invoice Generator] KHQR data received:", data);
+      setKhqrData(data);
     } catch (error) {
       console.error("[Invoice Generator] Error generating KHQR:", error);
     } finally {
@@ -141,22 +127,16 @@ export function InvoiceGenerator({ invoice, onClose }: InvoiceGeneratorProps) {
 
   const fetchUserProfile = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/user-profiles/`, {
-        headers: { Authorization: `Token ${token}` },
-      });
-      if (response.ok) {
-        const profiles = await response.json();
-        if (profiles.length > 0) {
-          const profile = profiles[0];
-          setBusinessInfo({
-            businessName: profile.businessName || "Your Business",
-            businessAddress: profile.businessAddress || "",
-            businessPhone: profile.businessPhone || "",
-          });
-          if (profile.qrCodeImage) {
-            setQrCodeUrl(profile.qrCodeImage);
-          }
+      const profiles = await fetchAPI("/user-profiles/");
+      if (profiles && profiles.length > 0) {
+        const profile = profiles[0];
+        setBusinessInfo({
+          businessName: profile.businessName || "Your Business",
+          businessAddress: profile.businessAddress || "",
+          businessPhone: profile.businessPhone || "",
+        });
+        if (profile.qrCodeImage) {
+          setQrCodeUrl(profile.qrCodeImage);
         }
       }
     } catch (error) {

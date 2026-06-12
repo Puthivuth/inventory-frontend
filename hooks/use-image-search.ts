@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { buildApiUrl } from "@/lib/api";
 
 export interface Detection {
   box: number[];
@@ -37,11 +38,6 @@ interface UseImageSearchResult {
   clearResults: () => void;
 }
 
-// Get backend API URL
-const getBackendUrl = () => {
-  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
-};
-
 export const useImageSearch = (): UseImageSearchResult => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,10 +58,7 @@ export const useImageSearch = (): UseImageSearchResult => {
       formData.append("file", file);
 
       const token = localStorage.getItem("token");
-      const backendUrl = getBackendUrl();
-      const apiUrl = backendUrl.includes("/api")
-        ? `${backendUrl}/detect-objects/`
-        : `${backendUrl}/api/detect-objects/`;
+      const apiUrl = buildApiUrl("/detect-objects/");
 
       const response = await fetch(apiUrl, {
         method: "POST",
@@ -108,10 +101,7 @@ export const useImageSearch = (): UseImageSearchResult => {
         }
 
         const token = localStorage.getItem("token");
-        const backendUrl = getBackendUrl();
-        const apiUrl = backendUrl.includes("/api")
-          ? `${backendUrl}/search-products/`
-          : `${backendUrl}/api/search-products/`;
+        const apiUrl = buildApiUrl("/search-products/");
 
         const response = await fetch(apiUrl, {
           method: "POST",
@@ -158,10 +148,7 @@ export const useImageSearch = (): UseImageSearchResult => {
         });
 
         const token = localStorage.getItem("token");
-        const backendUrl = getBackendUrl();
-        const apiUrl = backendUrl.includes("/api")
-          ? `${backendUrl}/search-products-url/?${params}`
-          : `${backendUrl}/api/search-products-url/?${params}`;
+        const apiUrl = buildApiUrl(`/search-products-url/?${params}`);
 
         const response = await fetch(apiUrl, {
           method: "GET",

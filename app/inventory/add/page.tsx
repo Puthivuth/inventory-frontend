@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sidebar } from "@/components/navigation/sidebar";
-import { getCurrentUser } from "@/lib/api";
+import { getCurrentUser, fetchAPI } from "@/lib/api";
 import { InventoryForm } from "@/components/inventory/inventory-form";
 import { useSidebarState } from "@/hooks/use-sidebar-state";
 import type { InventoryFormData } from "@/types";
@@ -31,198 +31,35 @@ export default function AddProductPage() {
     try {
       setIsLoading(true);
       setError(null);
-      const token = localStorage.getItem("token");
-
-      if (!token) {
-        throw new Error("Authentication token not found. Please log in again.");
-      }
 
       // Create product
-      const productResponse = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/products/`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Token ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            productName: formData.name,
-            description: formData.description,
-            skuCode: formData.sku,
-            subcategory: formData.subcategory,
-            source: formData.sourceId,
-            status: formData.status,
-            unit: formData.unit,
-            costPrice: formData.costPrice,
-            salePrice: formData.salePrice,
-            discount: formData.discount,
-            image: formData.imageUrl,
-          }),
-        },
-      );
-
-      if (!productResponse.ok) {
-        let errorData: any = {};
-        let responseText = "";
-
-        try {
-          responseText = await productResponse.text();
-
-          // Try to parse as JSON if it looks like JSON
-          if (responseText && responseText.trim().startsWith("{")) {
-            try {
-              errorData = JSON.parse(responseText);
-            } catch (e) {
-              errorData = { rawResponse: responseText };
-            }
-          } else {
-            errorData = {
-              rawResponse: responseText || "(empty response body)",
-            };
-          }
-        } catch (readError) {
-          console.error("[AddProductPage] Failed to read response:", readError);
-          errorData = { readError: String(readError) };
-        }
-
-        console.error(
-          "[AddProductPage] Product creation failed:",
-          JSON.stringify(
-            {
-              status: productResponse.status,
-              statusText: productResponse.statusText,
-              contentType: productResponse.headers.get("content-type"),
-              error: errorData,
-              requestPayload: {
-                productName: formData.name,
-                description: formData.description,
-                skuCode: formData.sku,
-                subcategory: formData.subcategory,
-                source: formData.sourceId,
-                status: formData.status,
-                unit: formData.unit,
-                salePrice: formData.salePrice,
-              },
-              backend: `${process.env.NEXT_PUBLIC_API_URL}/products/`,
-            },
-            null,
-            2,
-          ),
-        );
-
-        let errorMessage = "";
-
-        if (errorData.detail) {
-          errorMessage = errorData.detail;
-        } else if (errorData.error) {
-          errorMessage = errorData.error;
-        } else if (errorData.rawResponse) {
-          errorMessage = errorData.rawResponse;
-        } else if (errorData.readError) {
-          errorMessage = `Failed to read error response: ${errorData.readError}`;
-        } else {
-          // Extract first string error from object
-          const stringErrors = Object.entries(errorData)
-            .filter(([_, v]) => typeof v === "string")
-            .map(([k, v]) => `${k}: ${v}`);
-          errorMessage =
-            stringErrors.join(", ") ||
-            `Failed to create product (HTTP ${productResponse.status} ${productResponse.statusText})`;
-        }
-
-        throw new Error(errorMessage);
-      }
-
-      const product = await productResponse.json();
+      const product = await fetchAPI("/products/", {
+        method: "POST",
+        body: JSON.stringify({
+          productName: formData.name,
+          description: formData.description,
+          skuCode: formData.sku,
+          subcategory: formData.subcategory,
+          source: formData.sourceId,
+          status: formData.status,
+          unit: formData.unit,
+          costPrice: formData.costPrice,
+          salePrice: formData.salePrice,
+          discount: formData.discount,
+          image: formData.imageUrl,
+        }),
+      });
 
       // Create inventory record
-      const inventoryResponse = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/inventory/`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Token ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            product: product.productId,
-            quantity: formData.stock,
-            reorderLevel: formData.minStock,
-            location: formData.location,
-          }),
-        },
-      );
-
-      if (!inventoryResponse.ok) {
-        let errorData: any = {};
-        let responseText = "";
-
-        try {
-          responseText = await inventoryResponse.text();
-
-          // Try to parse as JSON if it looks like JSON
-          if (responseText && responseText.trim().startsWith("{")) {
-            try {
-              errorData = JSON.parse(responseText);
-            } catch (e) {
-              errorData = { rawResponse: responseText };
-            }
-          } else {
-            errorData = {
-              rawResponse: responseText || "(empty response body)",
-            };
-          }
-        } catch (readError) {
-          console.error(
-            "[AddProductPage] Failed to read inventory response:",
-            readError,
-          );
-          errorData = { readError: String(readError) };
-        }
-
-        console.error(
-          "[AddProductPage] Inventory creation failed:",
-          JSON.stringify(
-            {
-              status: inventoryResponse.status,
-              statusText: inventoryResponse.statusText,
-              contentType: inventoryResponse.headers.get("content-type"),
-              error: errorData,
-              requestPayload: {
-                product: product.productId,
-                quantity: formData.stock,
-                reorderLevel: formData.minStock,
-                location: formData.location,
-              },
-              backend: `${process.env.NEXT_PUBLIC_API_URL}/inventory/`,
-            },
-            null,
-            2,
-          ),
-        );
-
-        let errorMessage = "";
-
-        if (errorData.detail) {
-          errorMessage = errorData.detail;
-        } else if (errorData.error) {
-          errorMessage = errorData.error;
-        } else if (errorData.rawResponse) {
-          errorMessage = errorData.rawResponse;
-        } else if (errorData.readError) {
-          errorMessage = `Failed to read error response: ${errorData.readError}`;
-        } else {
-          const stringErrors = Object.entries(errorData)
-            .filter(([_, v]) => typeof v === "string")
-            .map(([k, v]) => `${k}: ${v}`);
-          errorMessage =
-            stringErrors.join(", ") ||
-            `Failed to create inventory record (HTTP ${inventoryResponse.status} ${inventoryResponse.statusText})`;
-        }
-
-        throw new Error(errorMessage);
-      }
+      await fetchAPI("/inventory/", {
+        method: "POST",
+        body: JSON.stringify({
+          product: product.productId,
+          quantity: formData.stock,
+          reorderLevel: formData.minStock,
+          location: formData.location,
+        }),
+      });
 
       // Success - redirect to inventory list
       router.push("/inventory");

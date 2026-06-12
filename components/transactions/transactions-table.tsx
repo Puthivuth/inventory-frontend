@@ -21,6 +21,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { fetchAPI } from "@/lib/api";
 
 interface Transaction {
   transactionId: number;
@@ -49,20 +50,8 @@ export function TransactionsTable() {
 
   const fetchTransactions = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/transactions/`, {
-        headers: {
-          Authorization: `Token ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setTransactions(data);
-      } else {
-        console.error("Failed to fetch transactions");
-      }
+      const data = await fetchAPI("/transactions/");
+      setTransactions(data);
     } catch (error) {
       console.error("Error fetching transactions:", error);
     } finally {

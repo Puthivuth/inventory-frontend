@@ -33,7 +33,7 @@ import {
 import { PurchaseOrderDialog } from "./purchase-order-dialog";
 import { InvoiceGenerator } from "./invoice-generator";
 import { KHQRPaymentDialog } from "@/components/invoice/khqr-payment-dialog";
-import { getInvoices } from "@/lib/api";
+import { getInvoices, fetchAPI } from "@/lib/api";
 import { canWrite } from "@/lib/permissions";
 
 interface Invoice {
@@ -134,30 +134,19 @@ export function PurchaseOrderTable({
     setCheckingPayments((prev) => new Set(prev).add(invoiceId));
 
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/invoices/${invoiceId}/check_payment/`,
+      const result = await fetchAPI(
+        `/invoices/${invoiceId}/check_payment/`,
         {
           method: "POST",
-          headers: {
-            Authorization: `Token ${token}`,
-            "Content-Type": "application/json",
-          },
         },
       );
 
-      if (response.ok) {
-        const result = await response.json();
-
-        if (result.paid) {
-          console.log(`✅ Payment confirmed for invoice #${invoiceId}!`);
-          // Refresh invoices to show updated status
-          fetchInvoices();
-        } else {
-          console.log(`⏳ Payment not yet received for invoice #${invoiceId}`);
-        }
+      if (result.paid) {
+        console.log(`✅ Payment confirmed for invoice #${invoiceId}!`);
+        // Refresh invoices to show updated status
+        fetchInvoices();
       } else {
-        console.error(`❌ Failed to check payment for invoice #${invoiceId}`);
+        console.log(`⏳ Payment not yet received for invoice #${invoiceId}`);
       }
     } catch (error) {
       console.error(
@@ -178,25 +167,12 @@ export function PurchaseOrderTable({
     if (!confirm(`Mark order ${invoice.invoiceNumber} as paid?`)) return;
 
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/invoices/${invoice.invoiceId}/`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Token ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ status: "Paid" }),
-        },
-      );
-
-      if (response.ok) {
-        fetchInvoices();
-        alert("Order marked as paid and transaction recorded!");
-      } else {
-        alert("Failed to mark order as paid");
-      }
+      await fetchAPI(`/invoices/${invoice.invoiceId}/`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "Paid" }),
+      });
+      fetchInvoices();
+      alert("Order marked as paid and transaction recorded!");
     } catch (error) {
       console.error("Error marking as paid:", error);
       alert("Error marking as paid");
@@ -208,25 +184,12 @@ export function PurchaseOrderTable({
     if (!confirm(`Cancel order ${invoice.invoiceNumber}?`)) return;
 
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/invoices/${invoice.invoiceId}/`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Token ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ status: "Cancelled" }),
-        },
-      );
-
-      if (response.ok) {
-        fetchInvoices();
-        alert("Order cancelled successfully!");
-      } else {
-        alert("Failed to cancel order");
-      }
+      await fetchAPI(`/invoices/${invoice.invoiceId}/`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "Cancelled" }),
+      });
+      fetchInvoices();
+      alert("Order cancelled successfully!");
     } catch (error) {
       console.error("Error cancelling order:", error);
       alert("Error cancelling order");
@@ -238,22 +201,10 @@ export function PurchaseOrderTable({
     if (!confirm("Are you sure you want to delete this order?")) return;
 
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/invoices/${invoiceId}/`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Token ${token}`,
-          },
-        },
-      );
-
-      if (response.ok || response.status === 204) {
-        fetchInvoices();
-      } else {
-        alert("Failed to delete order");
-      }
+      await fetchAPI(`/invoices/${invoiceId}/`, {
+        method: "DELETE",
+      });
+      fetchInvoices();
     } catch (error) {
       console.error("Error deleting order:", error);
       alert("Error deleting order");
@@ -264,23 +215,9 @@ export function PurchaseOrderTable({
     if (!invoiceId) return;
 
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/invoices/${invoiceId}/`,
-        {
-          headers: {
-            Authorization: `Token ${token}`,
-          },
-        },
-      );
-
-      if (response.ok) {
-        const invoiceData = await response.json();
-        setSelectedInvoice(invoiceData);
-        setIsDialogOpen(true);
-      } else {
-        alert("Failed to load invoice details");
-      }
+      const invoiceData = await fetchAPI(`/invoices/${invoiceId}/`);
+      setSelectedInvoice(invoiceData);
+      setIsDialogOpen(true);
     } catch (error) {
       console.error("Error loading invoice:", error);
       alert("Error loading invoice");

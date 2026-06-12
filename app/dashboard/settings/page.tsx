@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ArrowLeft, Save } from "lucide-react"
+import { fetchAPI } from "@/lib/api"
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -28,8 +29,6 @@ export default function SettingsPage() {
 
   const fetchUserProfile = async () => {
     try {
-      const token = localStorage.getItem("token")
-      
       // Get current user ID
       const userStr = localStorage.getItem("user")
       if (userStr) {
@@ -37,24 +36,18 @@ export default function SettingsPage() {
         setUserId(user.id)
         
         // Fetch user profile
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/user-profiles/`, {
-          headers: { Authorization: `Token ${token}` },
-        })
+        const profiles = await fetchAPI("/user-profiles/")
+        const userProfile = profiles.find((p: any) => p.user === user.id)
         
-        if (response.ok) {
-          const profiles = await response.json()
-          const userProfile = profiles.find((p: any) => p.user === user.id)
-          
-          if (userProfile) {
-            setProfileId(userProfile.profileId)
-            setProfileData({
-              businessName: userProfile.businessName || "",
-              businessAddress: userProfile.businessAddress || "",
-              businessPhone: userProfile.businessPhone || "",
-              businessEmail: userProfile.businessEmail || "",
-              taxId: userProfile.taxId || "",
-            })
-          }
+        if (userProfile) {
+          setProfileId(userProfile.profileId)
+          setProfileData({
+            businessName: userProfile.businessName || "",
+            businessAddress: userProfile.businessAddress || "",
+            businessPhone: userProfile.businessPhone || "",
+            businessEmail: userProfile.businessEmail || "",
+            taxId: userProfile.taxId || "",
+          })
         }
       }
     } catch (error) {
@@ -72,7 +65,6 @@ export default function SettingsPage() {
 
     setIsSaving(true)
     try {
-      const token = localStorage.getItem("token")
       const formData = new FormData()
       
       formData.append("user", userId.toString())
@@ -83,39 +75,25 @@ export default function SettingsPage() {
       formData.append("taxId", profileData.taxId)
 
       // Check if profile exists
-      const checkResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/user-profiles/`, {
-        headers: { Authorization: `Token ${token}` },
-      })
+      const profiles = await fetchAPI("/user-profiles/")
       
       let method = "POST"
-      let url = `${process.env.NEXT_PUBLIC_API_URL}/user-profiles/`
+      let endpoint = "/user-profiles/"
       
-      if (checkResponse.ok) {
-        const profiles = await checkResponse.json()
-        const existingProfile = profiles.find((p: any) => p.user === userId)
-        
-        if (existingProfile && profileId) {
-          method = "PUT"
-          url = `${process.env.NEXT_PUBLIC_API_URL}/user-profiles/${profileId}/`
-        }
+      const existingProfile = profiles.find((p: any) => p.user === userId)
+      
+      if (existingProfile) {
+        method = "PUT"
+        endpoint = `/user-profiles/${existingProfile.profileId}/`
       }
 
-      const response = await fetch(url, {
+      await fetchAPI(endpoint, {
         method,
-        headers: {
-          Authorization: `Token ${token}`,
-        },
         body: formData,
       })
 
-      if (response.ok) {
-        alert("Settings saved successfully!")
-        fetchUserProfile()
-      } else {
-        const error = await response.text()
-        console.error("Error saving:", error)
-        alert("Failed to save settings")
-      }
+      alert("Settings saved successfully!")
+      fetchUserProfile()
     } catch (error) {
       console.error("Error saving settings:", error)
       alert("Error saving settings")

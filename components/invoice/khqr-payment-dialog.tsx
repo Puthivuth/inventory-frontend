@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import QRCodeStyling from "qr-code-styling";
 import { useRef } from "react";
+import { fetchAPI } from "@/lib/api";
 
 interface KHQRPaymentDialogProps {
   open: boolean;
@@ -96,24 +97,12 @@ export function KHQRPaymentDialog({
     setError(null);
 
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/invoices/${invoice.invoiceId}/generate_khqr/`,
+      const data = await fetchAPI(
+        `/invoices/${invoice.invoiceId}/generate_khqr/`,
         {
           method: "POST",
-          headers: {
-            Authorization: `Token ${token}`,
-            "Content-Type": "application/json",
-          },
         },
       );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to generate QR code");
-      }
-
-      const data = await response.json();
       setPaymentData(data);
 
       // Start polling for payment status
@@ -133,23 +122,12 @@ export function KHQRPaymentDialog({
     setChecking(true);
 
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/invoices/${invoice.invoiceId}/check_payment/`,
+      const data: PaymentStatus = await fetchAPI(
+        `/invoices/${invoice.invoiceId}/check_payment/`,
         {
           method: "POST",
-          headers: {
-            Authorization: `Token ${token}`,
-            "Content-Type": "application/json",
-          },
         },
       );
-
-      if (!response.ok) {
-        throw new Error("Failed to check payment status");
-      }
-
-      const data: PaymentStatus = await response.json();
 
       if (data.paid) {
         setIsPaid(true);
@@ -351,24 +329,17 @@ export function KHQRPaymentDialog({
                     )
                   ) {
                     try {
-                      const token = localStorage.getItem("token");
-                      const response = await fetch(
-                        `${process.env.NEXT_PUBLIC_API_URL}/invoices/${invoice.invoiceId}/mark_as_paid/`,
+                      await fetchAPI(
+                        `/invoices/${invoice.invoiceId}/mark_as_paid/`,
                         {
                           method: "POST",
-                          headers: {
-                            Authorization: `Token ${token}`,
-                            "Content-Type": "application/json",
-                          },
                         },
                       );
-                      if (response.ok) {
-                        setIsPaid(true);
-                        setTimeout(() => {
-                          onPaymentSuccess?.();
-                          onOpenChange(false);
-                        }, 2000);
-                      }
+                      setIsPaid(true);
+                      setTimeout(() => {
+                        onPaymentSuccess?.();
+                        onOpenChange(false);
+                      }, 2000);
                     } catch (err) {
                       console.error("Error marking as paid:", err);
                     }

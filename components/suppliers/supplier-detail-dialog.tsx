@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import type { Supplier, InventoryItem } from "@/types"
-import { getInventoryItems } from "@/lib/api"
+import { getInventoryItems, fetchAPI } from "@/lib/api"
 import {
   Dialog,
   DialogContent,
@@ -63,45 +63,35 @@ export function SupplierDetailDialog({ supplier, open, onOpenChange }: SupplierD
 
     setLoading(true)
     try {
-      const token = localStorage.getItem("token")
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/products/?source=${supplier.id}`, {
-        headers: {
-          Authorization: `Token ${token}`,
-          "Content-Type": "application/json",
-        },
-      })
+      const supplierProductsFromApi = await fetchAPI(`/products/?source=${supplier.id}`)
+      
+      // Create a map for inventory items for quick lookup by product name
+      const inventoryMap = new Map<string, InventoryItem>();
+      inventoryItems.forEach(item => {
+        inventoryMap.set(item.name.toLowerCase(), item);
+      });
 
-      if (response.ok) {
-        const supplierProductsFromApi = await response.json()
-        
-        // Create a map for inventory items for quick lookup by product name
-        const inventoryMap = new Map<string, InventoryItem>();
-        inventoryItems.forEach(item => {
-          inventoryMap.set(item.name.toLowerCase(), item);
-        });
+      const supplierProducts = supplierProductsFromApi
+        .map((product: any) => {
+          let costPrice = parseFloat(product.costPrice);
+          let discount = parseFloat(product.discount);
 
-        const supplierProducts = supplierProductsFromApi
-          .map((product: any) => {
-            let costPrice = parseFloat(product.costPrice);
-            let discount = parseFloat(product.discount);
-
-            // Fallback to inventory costPrice if supplier product costPrice is invalid
-            if (isNaN(costPrice) || costPrice === 0) { // Check for NaN or 0
-              const matchingInventoryItem = inventoryMap.get(product.productName.toLowerCase());
-              if (matchingInventoryItem && matchingInventoryItem.costPrice !== undefined) {
-                costPrice = matchingInventoryItem.costPrice;
-              }
+          // Fallback to inventory costPrice if supplier product costPrice is invalid
+          if (isNaN(costPrice) || costPrice === 0) { // Check for NaN or 0
+            const matchingInventoryItem = inventoryMap.get(product.productName.toLowerCase());
+            if (matchingInventoryItem && matchingInventoryItem.costPrice !== undefined) {
+              costPrice = matchingInventoryItem.costPrice;
             }
+          }
 
-            return {
-              ...product,
-              costPrice: costPrice,
-              discount: discount,
-              status: product.status,
-            };
-          });
-        setProducts(supplierProducts)
-      }
+          return {
+            ...product,
+            costPrice: costPrice,
+            discount: discount,
+            status: product.status,
+          };
+        });
+      setProducts(supplierProducts)
     } catch (error) {
       console.error("Error fetching supplier products:", error)
     } finally {

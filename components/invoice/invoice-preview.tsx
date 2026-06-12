@@ -7,6 +7,7 @@ import { Download, Loader2 } from "lucide-react"
 import html2canvas from "html2canvas"
 import jsPDF from "jspdf"
 import QRCodeStyling from "qr-code-styling"
+import { fetchAPI } from "@/lib/api"
 
 interface InvoicePreviewProps {
   invoice: Invoice
@@ -65,25 +66,14 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
       console.log('[Invoice Preview] Generating KHQR QR code...')
       setLoadingQR(true)
       try {
-        const token = localStorage.getItem('token')
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/invoices/${invoice.invoiceId}/generate_khqr/`,
+        const data = await fetchAPI(
+          `/invoices/${invoice.invoiceId}/generate_khqr/`,
           {
             method: 'POST',
-            headers: {
-              'Authorization': `Token ${token}`,
-              'Content-Type': 'application/json',
-            },
           }
         )
-
-        if (response.ok) {
-          const data = await response.json()
-          console.log('[Invoice Preview] KHQR data received:', data)
-          setKhqrData(data)
-        } else {
-          console.error('[Invoice Preview] KHQR generation failed:', response.status)
-        }
+        console.log('[Invoice Preview] KHQR data received:', data)
+        setKhqrData(data)
       } catch (error) {
         console.error('[Invoice Preview] Error generating KHQR:', error)
       } finally {
@@ -110,34 +100,22 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
 
       console.log('[Invoice Preview] Checking payment status on load...')
       try {
-        const token = localStorage.getItem('token')
         console.log('[Invoice Preview] Making API call to check payment...')
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/invoices/${invoice.invoiceId}/check_payment/`,
+        const data = await fetchAPI(
+          `/invoices/${invoice.invoiceId}/check_payment/`,
           {
             method: 'POST',
-            headers: {
-              'Authorization': `Token ${token}`,
-              'Content-Type': 'application/json',
-            },
           }
         )
 
-        console.log('[Invoice Preview] API response status:', response.status)
-        
-        if (response.ok) {
-          const data = await response.json()
-          console.log('[Invoice Preview] Payment status:', data)
-          if (data.paid) {
-            console.log('[Invoice Preview] Payment confirmed! Timestamp:', data.payment_timestamp)
-            alert('Payment received! Invoice will be updated.')
-            // Refresh the page to show updated status with payment timestamp
-            window.location.reload()
-          } else {
-            console.log('[Invoice Preview] Payment not yet received')
-          }
+        console.log('[Invoice Preview] Payment status:', data)
+        if (data.paid) {
+          console.log('[Invoice Preview] Payment confirmed! Timestamp:', data.payment_timestamp)
+          alert('Payment received! Invoice will be updated.')
+          // Refresh the page to show updated status with payment timestamp
+          window.location.reload()
         } else {
-          console.error('[Invoice Preview] API call failed:', response.status)
+          console.log('[Invoice Preview] Payment not yet received')
         }
       } catch (error) {
         console.error('[Invoice Preview] Error checking payment:', error)
